@@ -1,0 +1,62 @@
+name:                commuter
+version:             0.1.0.0
+github:              "doyougnu/commuter"
+license:             WTFPL
+author:              "Jeffrey Young"
+maintainer:          "youngjef@oregonstate.edu"
+copyright:           "2018 Jeffrey Young"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            DSL for writing category theory commuting diagrams
+# category:            utility
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on Github at <https://github.com/doyougnu/commuter#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- diagrams
+- diagrams-lib
+- diagrams-contrib
+- diagrams-svg
+- diagrams-core
+
+default-extensions:
+  - FlexibleContexts
+  - TypeFamilies
+  - NoMonomorphismRestriction
+
+library:
+  source-dirs: src
+  dependencies:
+    - base >= 4.7 && < 5
+    - diagrams >= 1.4
+    - text
+
+executables:
+  commuter:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - commuter
+
+tests:
+  commuter-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - commuter
