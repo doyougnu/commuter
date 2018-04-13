@@ -2,11 +2,9 @@ module Main where
 
 import Diagrams.Prelude
 import Diagrams.Backend.SVG.CmdLine
+import Primitives
 
-
--- run like stack exec -- commuter -w 100 -h 100 -o test.svg
-c :: Diagram B
-c = circle 1
+-- run like stack exec -- commuter -w 400 -h 400 -o test.svg
 
 main :: IO ()
-main = mainWith c
+main = mainWith $ tournament 3 # pad 3
