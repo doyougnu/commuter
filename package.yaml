@@ -39,6 +39,7 @@ library:
     - base >= 4.7 && < 5
     - diagrams >= 1.4
     - text
+    - containers
 
 executables:
   commuter:
