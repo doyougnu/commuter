@@ -21,11 +21,14 @@ description:         Please see the README on Github at <https://github.com/doyo
 
 dependencies:
 - base >= 4.7 && < 5
-- diagrams
-- diagrams-lib
-- diagrams-contrib
-- diagrams-svg
-- diagrams-core
+- text
+- containers
+- array
+# - diagrams
+# - diagrams-lib
+# - diagrams-contrib
+# - diagrams-svg
+# - diagrams-core
 
 default-extensions:
   - FlexibleContexts
@@ -37,9 +40,6 @@ library:
   source-dirs: src
   dependencies:
     - base >= 4.7 && < 5
-    - diagrams >= 1.4
-    - text
-    - containers
 
 executables:
   commuter:
