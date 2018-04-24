@@ -22,7 +22,6 @@ module Primitives where
 import Data.Array
 import Control.Monad               (liftM, liftM2)
 import Control.Applicative
-import Data.Map
 
 -- | From Issue 5 of the Monad Reader (Practical Graph Handling) This
 -- formulation of a graph is based on generalized recursion schemes so
@@ -57,14 +56,25 @@ buildA nbs edges = Just $ accumArray (flip (:)) [] nbs [(from , (lbl, to)) | (fr
 
 
 -- | build a graph with bounds and a list of edges
-buildGraph :: Bounds n m -> [Edge n l] -> [FEdge n l] -> Graph n m l
-buildGraph (nbs, ebs) edges hedges = Graph {nTable=cat1, eTable=Nothing}
+buildGraph :: (Ix n, Ix m) => Bounds n m -> [Edge n l] -> [Edge m l] -> Graph n m l
+buildGraph (nbs, ebs) edges hedges = Graph {nTable=cat1, eTable=cat2}
   where
-    nTable =
---                                                  (from, lbl, to) <- edges]
+    cat1 = buildA nbs edges
+    cat2 = buildA ebs hedges
 
-    -- cat2 :: EdgeT n l
-    -- cat2 = Just $ accumArray (flip (:)) [] ebs [ (from , (lbl, to)) | (from, lbl, to) <- hedges]
+-- | Given a projection of a graph, and a graph return all the edges in the
+-- graph by the provided function
+
+edgesBy :: Ix n => (t -> Adj n l) -> t -> [Edge n l]
+edgesBy f (f -> Nothing) = []
+edgesBy f (f-> Just nTab) = [(fr, lbl, to) |
+                             fr <- indices nTab, (lbl, to) <- nTab ! fr]
+
+plainEdges :: Ix n => Graph n m l -> [Edge n l]
+plainEdges = edgesBy nTable
+
+hyperEdges :: Ix m => Graph n m l -> [Edge m l]
+hyperEdges = edgesBy eTable
 
 -- -- | get all the edges in a graph
 -- edges :: Ix n => Graph n e -> [Edge n e]

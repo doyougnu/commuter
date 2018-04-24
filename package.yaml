@@ -35,6 +35,7 @@ default-extensions:
   - TypeFamilies
   - NoMonomorphismRestriction
   - OverloadedStrings
+  - ViewPatterns
 
 library:
   source-dirs: src
