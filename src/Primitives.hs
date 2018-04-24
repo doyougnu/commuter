@@ -51,17 +51,16 @@ emptyTable :: Adj n l
 emptyTable = Nothing
 
 -- | Build an adjacency list
-buildN :: Ix n => (,) n n -> [Edge n l] -> Adj n l
-buildN nbs edges = Just $ accumArray (flip (:)) [] nbs [(from , (lbl, to)) | (from, lbl, to) <- edges]
+buildA :: Ix n => (,) n n -> [Edge n l] -> Adj n l
+buildA nbs edges = Just $ accumArray (flip (:)) [] nbs [(from , (lbl, to)) | (from, lbl, to) <- edges]
 
 
 
 -- | build a graph with bounds and a list of edges
--- buildGraph :: Bounds n m -> [Edge n l] -> [FEdge n l] -> Graph n m l
--- buildGraph (nbs, ebs) edges hedges = Graph {nTable=cat1, eTable=Nothing}
---   where
---     cat1 :: NodeT n l
---     cat1 = Just $ accumArray (flip (:)) [] nbs [ (from , (lbl, to)) |
+buildGraph :: Bounds n m -> [Edge n l] -> [FEdge n l] -> Graph n m l
+buildGraph (nbs, ebs) edges hedges = Graph {nTable=cat1, eTable=Nothing}
+  where
+    nTable =
 --                                                  (from, lbl, to) <- edges]
 
     -- cat2 :: EdgeT n l
