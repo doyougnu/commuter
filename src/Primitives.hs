@@ -20,8 +20,8 @@ module Primitives where
 --   are complicated.
 
 import Data.Array
-import Control.Monad               (liftM, liftM2)
-import Control.Applicative
+import Control.Arrow                  ((&&&))
+import Data.Bifunctor                 (bimap)
 
 -- | From Issue 5 of the Monad Reader (Practical Graph Handling) This
 -- formulation of a graph is based on generalized recursion schemes so
@@ -34,9 +34,9 @@ type Adj n l = Maybe (Table n [(l, n)])
 
 data Graph n m l = Graph { nTable :: Adj n l    -- ^ this graph can have arrows
                          , eTable :: Adj m l    -- ^ between nodes and arrows
-                         }                      -- ^ between edges
+                         } deriving Show        -- ^ between edges
 
-type Bounds n m = ((n, n), (m, m))
+type Bounds n m = (Maybe (n, n), Maybe (m, m))
 
 type Edge n l = (n, l, n)                 -- ^ abstracted edges, w/ labels
 
@@ -50,13 +50,15 @@ emptyTable :: Adj n l
 emptyTable = Nothing
 
 -- | Build an adjacency list
-buildA :: Ix n => (,) n n -> [Edge n l] -> Adj n l
-buildA nbs edges = Just $ accumArray (flip (:)) [] nbs [(from , (lbl, to)) | (from, lbl, to) <- edges]
-
-
+buildA :: (Ix n, Num n) => Maybe (n, n) -> [Edge n l] -> Adj n l
+buildA _          []    = Nothing
+buildA Nothing    _     = Nothing
+buildA (Just nbs) edges = Just $ accumArray (flip (:)) [] nbs
+                          [(from , (lbl, to)) | (from, lbl, to) <- edges]
 
 -- | build a graph with bounds and a list of edges
-buildGraph :: (Ix n, Ix m) => Bounds n m -> [Edge n l] -> [Edge m l] -> Graph n m l
+buildGraph :: (Ix n, Ix m, Num n, Num m) =>
+  Bounds n m -> [Edge n l] -> [Edge m l] -> Graph n m l
 buildGraph (nbs, ebs) edges hedges = Graph {nTable=cat1, eTable=cat2}
   where
     cat1 = buildA nbs edges
@@ -64,26 +66,41 @@ buildGraph (nbs, ebs) edges hedges = Graph {nTable=cat1, eTable=cat2}
 
 -- | Given a projection of a graph, and a graph return all the edges in the
 -- graph by the provided function
-
 edgesBy :: Ix n => (t -> Adj n l) -> t -> [Edge n l]
-edgesBy f (f -> Nothing) = []
 edgesBy f (f-> Just nTab) = [(fr, lbl, to) |
                              fr <- indices nTab, (lbl, to) <- nTab ! fr]
+edgesBy _ _               = []
 
+-- | avoid some extra key presses
+mkBounds :: n -> n -> m -> m -> Bounds n m
+mkBounds n1 n2 m1 m2 = bimap Just Just ((n1, n2), (m1, m2))
+
+-- | Get the bounds of the graph
+gBounds :: Graph n m l -> Bounds n m
+gBounds g = bimap f f $ decomposeGraph g
+  where f = fmap bounds
+
+-- | Get all the plain edges in a graph
 plainEdges :: Ix n => Graph n m l -> [Edge n l]
 plainEdges = edgesBy nTable
 
+-- | Get all the hyper edges in a graph
 hyperEdges :: Ix m => Graph n m l -> [Edge m l]
 hyperEdges = edgesBy eTable
 
--- -- | get all the edges in a graph
--- edges :: Ix n => Graph n e -> [Edge n e]
--- edges Nothing = []
--- edges (Just grph) = [ (fr, lbl, to) | fr <- indices grph , (lbl, to) <- grph ! fr]
+-- | Given a graph, unwrap it to its underlying representation
+decomposeGraph :: Graph n m l -> (Adj n l, Adj m l)
+decomposeGraph = nTable &&& eTable
 
--- coGraph :: (Ix n) => Graph n l -> Graph n l
--- coGraph Nothing = Nothing
--- coGraph x@(Just g) = buildGraph (bounds g) [ (to, l, fr) | (fr, l, to) <- edges x]
+-- | Not sure which will be more convenient to work with yet
+decomposeGraph' :: (Ix n, Ix m) => Graph n m l -> ([Edge n l], [Edge m l])
+decomposeGraph' = plainEdges &&& hyperEdges
+
+-- | Flip all the arrow directions in a graph
+coGraph :: (Num n, Num m, Ix n, Ix m) => Graph n m l -> Graph n m l
+coGraph g = buildGraph (gBounds g) es hs
+  where (es, hs) = bimap eFlip eFlip $ decomposeGraph' g
+        eFlip xs = [ (to, l, fr) | (fr, l, to) <- xs]
 
 -- singleton :: (Ix n) => n -> Graph n l
 -- singleton n = Just $ listArray (n,n) []
