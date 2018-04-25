@@ -21,7 +21,7 @@ module Primitives where
 
 import Data.Map
 import Control.Arrow                  ((&&&), (***))
-import Data.Bifunctor                 (bimap, Bifunctor, first)
+import Data.Bifunctor                 (bimap, first, second)
 
 type Table n a = Map n a                 -- ^ an adjacency table via nodes
 
@@ -51,59 +51,60 @@ buildBy fkey fedge xs = go xs empty
             key = fkey y
 
 -- | Build an adjacency list for nodes
-buildA :: Ord n => [Edge n l] -> Adj n l
-buildA = buildBy fst_ sndAndThrd
+buildTable :: Ord n => [Edge n l] -> Map n [(l, n)]
+buildTable = buildBy fst_ sndAndThrd
   where fst_ (a, _, _) = a
         sndAndThrd (_, b, c) = (b, c)
-
--- | And one for edges
-buildE :: Ord l => [Edge n l] -> EAdj n l
-buildE = buildBy snd_ fstAndThrd
-  where snd_ (_, b, _) = b
-        fstAndThrd (a, _, c) = (a, c)
 
 -- | take a map and unwind it, this does Map Node Edges -> [(Node, label, Node2)]
 unBuildBy :: (t -> a -> b) -> Map t [a] -> [b]
 unBuildBy f = foldrWithKey (\frm ex acc -> ex >>= flip (:) acc . f frm) []
 
-unBuildA :: Adj n l -> [Edge n l]
-unBuildA = unBuildBy toTrip
+-- unBuildT :: Adj n l -> [Edge n l]
+unBuildT :: Map n [(l, n)] -> [Edge n l]
+unBuildT = unBuildBy toTrip
   where toTrip a (b, c) = (a, b, c)
 
-unBuildE :: EAdj n l -> [Edge n l]
-unBuildE = unBuildBy toTrip
-  where toTrip a (b, c) = (b, a, c)
-
 -- | build a graph with bounds and a list of edges
-buildGraph :: (Ord n, Ord l) => [Edge n l] -> Graph n l
-buildGraph = buildA &&& buildE
+buildGraph :: (Ord n, Ord l) => [Edge n l] -> [Edge l m] -> Graph n m l
+buildGraph es hs = (buildTable es, buildTable hs)
+
+-- | An empty graph
+emptyGraph :: Graph n m l
+emptyGraph = (empty, empty)
 
 -- | Given a projection of a graph, and a graph return all the edges in the
 -- graph by the provided function
 -- OH GOD THIS GENERATED TYPE
 edgesBy :: (([Edge n1 l1], [Edge n2 l2]) -> t)
                  -> (Adj n1 l1, EAdj n2 l2) -> t
-edgesBy f g = f $ unBuildA *** unBuildE $ g
+edgesBy f g = f $ unBuildT *** unBuildT $ g
 
 -- | Get all the plain edges in a graph
-plainEdges :: Graph n l -> [Edge n l]
+plainEdges :: Graph n m l -> [Edge n l]
 plainEdges = edgesBy fst
 
 -- | Get all the hyper edges in a graph
-hyperEdges :: Graph n l -> [Edge n l]
+hyperEdges :: Graph n m l -> [Edge l m]
 hyperEdges = edgesBy snd
 
--- | Not sure which will be more convenient to work with yet
-decomposeGraph :: Graph n l -> ([Edge n l], [Edge n l])
+-- | decompose teh graph into just a list of edges
+decomposeGraph :: Graph n m l -> ([Edge n l], [Edge l m])
 decomposeGraph = plainEdges &&& hyperEdges
 
 -- | Flip all the arrow directions in a graph
-coGraph :: (Ord n) => Graph n l -> Graph n l
+coGraph :: (Ord n, Ord l) => Graph n m l -> Graph n m l
 coGraph g = buildGraph es hs
   where (es, hs) = bimap eFlip eFlip $ decomposeGraph g
-        eFlip xs = [ (to, l, fr) | (fr, l, to) <- xs]
+        eFlip xs = [ (to, l, fr) | (fr, l, to) <- xs ]
 
--- -- addEdge :: (Ord n) => Edge n l -> Graph n l -> Graph n l
--- -- addEdge (from, l, to) = adjust ((:) (l, to)) from *** insertWith (++) l [(from,to)]
+addT :: (Ord n) => Edge n l -> Map n [(l, n)] -> Map n [(l, n)]
+addT (from, lbl, to) mp
+  | from `member` mp = adjust ((:) (lbl, to)) from mp
+  | otherwise = insert from [(lbl, to)] mp
 
--- -- -- Change the representation we need an adjacency list for nodes, and one for edges
+addPEdge :: (Ord n, Ord l) => Edge n l -> Graph n m l -> Graph n m l
+addPEdge = first . addT
+
+addHEdge :: (Ord l) => Edge l m -> Graph n m l -> Graph n m l
+addHEdge = second . addT
