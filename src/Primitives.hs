@@ -21,7 +21,7 @@ module Primitives where
 
 import Data.Array
 import Control.Arrow                  ((&&&))
-import Data.Bifunctor                 (bimap)
+import Data.Bifunctor                 (bimap, Bifunctor, first)
 
 -- | From Issue 5 of the Monad Reader (Practical Graph Handling) This
 -- formulation of a graph is based on generalized recursion schemes so
@@ -32,9 +32,9 @@ type Table n a = Array n a                 -- ^ an adjacency table via nodes
 
 type Adj n l = Maybe (Table n [(l, n)])
 
-data Graph n m l = Graph { nTable :: Adj n l    -- ^ this graph can have arrows
-                         , eTable :: Adj m l    -- ^ between nodes and arrows
-                         } deriving Show        -- ^ between edges
+type Graph n m l = (Adj n l, Adj m l) -- ^ this graph can have arrows
+                                      -- ^ between nodes and arrows
+                                      -- ^ between edges
 
 type Bounds n m = (Maybe (n, n), Maybe (m, m))
 
@@ -43,7 +43,6 @@ type Edge n l = (n, l, n)                 -- ^ abstracted edges, w/ labels
 -- | Label is a function from Nodes to Labels
 type Label n l = n -> l
 data LGraph nl n m l = LGraph (Graph n m l) (Label nl l)
-
 
 -- | Empty tables
 emptyTable :: Adj n l
@@ -59,10 +58,7 @@ buildA (Just nbs) edges = Just $ accumArray (flip (:)) [] nbs
 -- | build a graph with bounds and a list of edges
 buildGraph :: (Ix n, Ix m, Num n, Num m) =>
   Bounds n m -> [Edge n l] -> [Edge m l] -> Graph n m l
-buildGraph (nbs, ebs) edges hedges = Graph {nTable=cat1, eTable=cat2}
-  where
-    cat1 = buildA nbs edges
-    cat2 = buildA ebs hedges
+buildGraph (nbs, ebs) es hs = bimap (buildA nbs) (buildA ebs) (es, hs)
 
 -- | Given a projection of a graph, and a graph return all the edges in the
 -- graph by the provided function
@@ -77,20 +73,16 @@ mkBounds n1 n2 m1 m2 = bimap Just Just ((n1, n2), (m1, m2))
 
 -- | Get the bounds of the graph
 gBounds :: Graph n m l -> Bounds n m
-gBounds g = bimap f f $ decomposeGraph g
+gBounds = bimap f f
   where f = fmap bounds
 
 -- | Get all the plain edges in a graph
 plainEdges :: Ix n => Graph n m l -> [Edge n l]
-plainEdges = edgesBy nTable
+plainEdges = edgesBy fst
 
 -- | Get all the hyper edges in a graph
 hyperEdges :: Ix m => Graph n m l -> [Edge m l]
-hyperEdges = edgesBy eTable
-
--- | Given a graph, unwrap it to its underlying representation
-decomposeGraph :: Graph n m l -> (Adj n l, Adj m l)
-decomposeGraph = nTable &&& eTable
+hyperEdges = edgesBy snd
 
 -- | Not sure which will be more convenient to work with yet
 decomposeGraph' :: (Ix n, Ix m) => Graph n m l -> ([Edge n l], [Edge m l])
@@ -102,14 +94,11 @@ coGraph g = buildGraph (gBounds g) es hs
   where (es, hs) = bimap eFlip eFlip $ decomposeGraph' g
         eFlip xs = [ (to, l, fr) | (fr, l, to) <- xs]
 
--- singleton :: (Ix n) => n -> Graph n l
--- singleton n = Just $ listArray (n,n) []
+-- | update the cat1 table given a function
+updateNBy :: (Functor f, Bifunctor p) => (a -> b) -> p (f a) c -> p (f b) c
+updateNBy = first . fmap
 
--- addEdge :: (Ix n) => Edge n l -> Graph n l -> Graph n l
--- addEdge _ Nothing = Nothing
--- addEdge (from, e, to) a@(Just g)
---   | from `elem` is && to `elem` is = Just $ g // [(from, [(e, to)])]
---   | otherwise = a
---   where is = indices g
+addEdge :: (Ix n) => Edge n l -> Graph n m l -> Graph n m l
+addEdge (from, l, to) g = updateNBy (\x -> accum (flip (++)) x [(from, [(l, to)])]) g
 
 -- -- Change the representation we need an adjacency list for nodes, and one for edges
