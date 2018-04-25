@@ -19,24 +19,18 @@ module Primitives where
 --   But I think some │ │ | major redesign might have to happen first. Arrows
 --   are complicated.
 
-import Data.Array
-import Control.Arrow                  ((&&&))
+import Data.Map
+import Control.Arrow                  ((&&&), (***))
 import Data.Bifunctor                 (bimap, Bifunctor, first)
 
--- | From Issue 5 of the Monad Reader (Practical Graph Handling) This
--- formulation of a graph is based on generalized recursion schemes so
--- operations on the graph should roughly be an anamorphism (unfold) or a
--- catamorphism (fold) this differs from the tying-the-knot approach to cycle
--- structures
-type Table n a = Array n a                 -- ^ an adjacency table via nodes
+type Table n a = Map n a                 -- ^ an adjacency table via nodes
 
-type Adj n l = Maybe (Table n [(l, n)])
+type Adj n l = Table n [(l, n)]        -- ^ node lbls n, func lbls l
+type EAdj l m = Table l [(m, l)]       -- ^ func labels l, hfunc lbls m
 
-type Graph n m l = (Adj n l, Adj m l) -- ^ this graph can have arrows
-                                      -- ^ between nodes and arrows
-                                      -- ^ between edges
-
-type Bounds n m = (Maybe (n, n), Maybe (m, m))
+type Graph n m l = (Adj n l, EAdj l m) -- ^ this graph can have arrows
+                                         -- ^ between nodes and arrows
+                                         -- ^ between edges
 
 type Edge n l = (n, l, n)                 -- ^ abstracted edges, w/ labels
 
@@ -44,61 +38,72 @@ type Edge n l = (n, l, n)                 -- ^ abstracted edges, w/ labels
 type Label n l = n -> l
 data LGraph nl n m l = LGraph (Graph n m l) (Label nl l)
 
--- | Empty tables
-emptyTable :: Adj n l
-emptyTable = Nothing
+-- | wonder which recursion scheme this is
+buildBy :: Ord k => (t -> k) -> (t -> a) -> [t] -> Map k [a]
+buildBy _    _     [] = empty
+buildBy fkey fedge xs = go xs empty
+  where
+    go [] mp = mp
+    go (y:ys) mp
+      | key `member` mp = go ys $ adjust ((:) edge) key mp
+      | otherwise = go ys $ insert key [edge] mp
+      where edge = fedge y
+            key = fkey y
 
--- | Build an adjacency list
-buildA :: (Ix n, Num n) => Maybe (n, n) -> [Edge n l] -> Adj n l
-buildA _          []    = Nothing
-buildA Nothing    _     = Nothing
-buildA (Just nbs) edges = Just $ accumArray (flip (:)) [] nbs
-                          [(from , (lbl, to)) | (from, lbl, to) <- edges]
+-- | Build an adjacency list for nodes
+buildA :: Ord n => [Edge n l] -> Adj n l
+buildA = buildBy fst_ sndAndThrd
+  where fst_ (a, _, _) = a
+        sndAndThrd (_, b, c) = (b, c)
+
+-- | And one for edges
+buildE :: Ord l => [Edge n l] -> EAdj n l
+buildE = buildBy snd_ fstAndThrd
+  where snd_ (_, b, _) = b
+        fstAndThrd (a, _, c) = (a, c)
+
+-- | take a map and unwind it, this does Map Node Edges -> [(Node, label, Node2)]
+unBuildBy :: (t -> a -> b) -> Map t [a] -> [b]
+unBuildBy f = foldrWithKey (\frm ex acc -> ex >>= flip (:) acc . f frm) []
+
+unBuildA :: Adj n l -> [Edge n l]
+unBuildA = unBuildBy toTrip
+  where toTrip a (b, c) = (a, b, c)
+
+unBuildE :: EAdj n l -> [Edge n l]
+unBuildE = unBuildBy toTrip
+  where toTrip a (b, c) = (b, a, c)
 
 -- | build a graph with bounds and a list of edges
-buildGraph :: (Ix n, Ix m, Num n, Num m) =>
-  Bounds n m -> [Edge n l] -> [Edge m l] -> Graph n m l
-buildGraph (nbs, ebs) es hs = bimap (buildA nbs) (buildA ebs) (es, hs)
+buildGraph :: (Ord n, Ord l) => [Edge n l] -> Graph n l
+buildGraph = buildA &&& buildE
 
 -- | Given a projection of a graph, and a graph return all the edges in the
 -- graph by the provided function
-edgesBy :: Ix n => (t -> Adj n l) -> t -> [Edge n l]
-edgesBy f (f-> Just nTab) = [(fr, lbl, to) |
-                             fr <- indices nTab, (lbl, to) <- nTab ! fr]
-edgesBy _ _               = []
-
--- | avoid some extra key presses
-mkBounds :: n -> n -> m -> m -> Bounds n m
-mkBounds n1 n2 m1 m2 = bimap Just Just ((n1, n2), (m1, m2))
-
--- | Get the bounds of the graph
-gBounds :: Graph n m l -> Bounds n m
-gBounds = bimap f f
-  where f = fmap bounds
+-- OH GOD THIS GENERATED TYPE
+edgesBy :: (([Edge n1 l1], [Edge n2 l2]) -> t)
+                 -> (Adj n1 l1, EAdj n2 l2) -> t
+edgesBy f g = f $ unBuildA *** unBuildE $ g
 
 -- | Get all the plain edges in a graph
-plainEdges :: Ix n => Graph n m l -> [Edge n l]
+plainEdges :: Graph n l -> [Edge n l]
 plainEdges = edgesBy fst
 
 -- | Get all the hyper edges in a graph
-hyperEdges :: Ix m => Graph n m l -> [Edge m l]
+hyperEdges :: Graph n l -> [Edge n l]
 hyperEdges = edgesBy snd
 
 -- | Not sure which will be more convenient to work with yet
-decomposeGraph' :: (Ix n, Ix m) => Graph n m l -> ([Edge n l], [Edge m l])
-decomposeGraph' = plainEdges &&& hyperEdges
+decomposeGraph :: Graph n l -> ([Edge n l], [Edge n l])
+decomposeGraph = plainEdges &&& hyperEdges
 
 -- | Flip all the arrow directions in a graph
-coGraph :: (Num n, Num m, Ix n, Ix m) => Graph n m l -> Graph n m l
-coGraph g = buildGraph (gBounds g) es hs
-  where (es, hs) = bimap eFlip eFlip $ decomposeGraph' g
+coGraph :: (Ord n) => Graph n l -> Graph n l
+coGraph g = buildGraph es hs
+  where (es, hs) = bimap eFlip eFlip $ decomposeGraph g
         eFlip xs = [ (to, l, fr) | (fr, l, to) <- xs]
 
--- | update the cat1 table given a function
-updateNBy :: (Functor f, Bifunctor p) => (a -> b) -> p (f a) c -> p (f b) c
-updateNBy = first . fmap
+-- -- addEdge :: (Ord n) => Edge n l -> Graph n l -> Graph n l
+-- -- addEdge (from, l, to) = adjust ((:) (l, to)) from *** insertWith (++) l [(from,to)]
 
-addEdge :: (Ix n) => Edge n l -> Graph n m l -> Graph n m l
-addEdge (from, l, to) g = updateNBy (\x -> accum (flip (++)) x [(from, [(l, to)])]) g
-
--- -- Change the representation we need an adjacency list for nodes, and one for edges
+-- -- -- Change the representation we need an adjacency list for nodes, and one for edges
