@@ -20,23 +20,30 @@ module Primitives where
 --   are complicated.
 
 import Data.Map
-import Control.Arrow                  ((&&&), (***))
+import Control.Arrow                  ((&&&), (***), (>>>))
 import Data.Bifunctor                 (bimap, first, second)
+import Data.Monoid                    ((<>))
+import Data.String                    (IsString)
 
-type Table n a = Map n a                 -- ^ an adjacency table via nodes
+type Table n a = Map n a
 
-type Adj n l = Table n [(l, n)]        -- ^ node lbls n, func lbls l
-type EAdj l m = Table l [(m, l)]       -- ^ func labels l, hfunc lbls m
+type Adj n l = Table n [(l, n)]        -- ^ an adjacency table via ns
+type NAdj n l = Adj n l                -- ^ node lbls n, func lbls l
+type EAdj l m = Adj l m                -- ^ func labels l, hfunc lbls m
 
-type Graph n m l = (Adj n l, EAdj l m) -- ^ this graph can have arrows
-                                         -- ^ between nodes and arrows
-                                         -- ^ between edges
+newtype Graph n m l = G { unG :: (Adj n l, EAdj l m)} -- ^ this graph can have arrows
+  deriving (Show,Eq)                                  -- ^ between nodes and arrows
+                                                      -- ^ between edges
 
-type Edge n l = (n, l, n)                 -- ^ abstracted edges, w/ labels
+type Edge n l = (n, l, n)                   -- ^ abstracted edges, w/ labels
 
 -- | Label is a function from Nodes to Labels
 type Label n l = n -> l
 data LGraph nl n m l = LGraph (Graph n m l) (Label nl l)
+
+instance (Ord n, Ord l) => Monoid (Graph n m l) where
+  mempty = G (empty, empty)
+  mappend (G (a, b)) (G (c, d)) = G (a <> c, b <> d)
 
 -- | wonder which recursion scheme this is
 buildBy :: Ord k => (t -> k) -> (t -> a) -> [t] -> Map k [a]
@@ -51,7 +58,7 @@ buildBy fkey fedge xs = go xs empty
             key = fkey y
 
 -- | Build an adjacency list for nodes
-buildTable :: Ord n => [Edge n l] -> Map n [(l, n)]
+buildTable :: Ord n => [Edge n l] -> Adj n l
 buildTable = buildBy fst_ sndAndThrd
   where fst_ (a, _, _) = a
         sndAndThrd (_, b, c) = (b, c)
@@ -60,33 +67,32 @@ buildTable = buildBy fst_ sndAndThrd
 unBuildBy :: (t -> a -> b) -> Map t [a] -> [b]
 unBuildBy f = foldrWithKey (\frm ex acc -> ex >>= flip (:) acc . f frm) []
 
--- unBuildT :: Adj n l -> [Edge n l]
-unBuildT :: Map n [(l, n)] -> [Edge n l]
+unBuildT :: Adj n l -> [Edge n l]
 unBuildT = unBuildBy toTrip
   where toTrip a (b, c) = (a, b, c)
 
 -- | build a graph with bounds and a list of edges
 buildGraph :: (Ord n, Ord l) => [Edge n l] -> [Edge l m] -> Graph n m l
-buildGraph es hs = (buildTable es, buildTable hs)
+buildGraph es hs = G (buildTable es, buildTable hs)
 
 -- | An empty graph
-emptyGraph :: Graph n m l
-emptyGraph = (empty, empty)
+emptyGraph :: (Ord n, Ord l) => Graph n m l
+emptyGraph = mempty
 
 -- | Given a projection of a graph, and a graph return all the edges in the
 -- graph by the provided function
 -- OH GOD THIS GENERATED TYPE
 edgesBy :: (([Edge n1 l1], [Edge n2 l2]) -> t)
-                 -> (Adj n1 l1, EAdj n2 l2) -> t
+                 -> (NAdj n1 l1, EAdj n2 l2) -> t
 edgesBy f g = f $ unBuildT *** unBuildT $ g
 
 -- | Get all the plain edges in a graph
 plainEdges :: Graph n m l -> [Edge n l]
-plainEdges = edgesBy fst
+plainEdges = edgesBy fst . unG
 
 -- | Get all the hyper edges in a graph
 hyperEdges :: Graph n m l -> [Edge l m]
-hyperEdges = edgesBy snd
+hyperEdges = edgesBy snd . unG
 
 -- | decompose teh graph into just a list of edges
 decomposeGraph :: Graph n m l -> ([Edge n l], [Edge l m])
@@ -98,13 +104,56 @@ coGraph g = buildGraph es hs
   where (es, hs) = bimap eFlip eFlip $ decomposeGraph g
         eFlip xs = [ (to, l, fr) | (fr, l, to) <- xs ]
 
-addT :: (Ord n) => Edge n l -> Map n [(l, n)] -> Map n [(l, n)]
+-- | add an edge to a table
+addT :: (Ord n) => Edge n l -> Adj n l -> Adj n l
 addT (from, lbl, to) mp
   | from `member` mp = adjust ((:) (lbl, to)) from mp
   | otherwise = insert from [(lbl, to)] mp
 
-addPEdge :: (Ord n, Ord l) => Edge n l -> Graph n m l -> Graph n m l
-addPEdge = first . addT
+pEdge :: (Ord n, Ord l) => Edge n l -> Graph n m l -> Graph n m l
+pEdge e = G . first (addT e) . unG
 
 addHEdge :: (Ord l) => Edge l m -> Graph n m l -> Graph n m l
-addHEdge = second . addT
+addHEdge e = G . second (addT e) . unG
+
+node :: (Ord n, Ord l) => n -> Graph n m l
+node k = G (singleton k [], empty)
+
+_idEdge :: (IsString l) => n -> Edge n l
+_idEdge n = (n, "id", n)
+
+idEdge :: (Ord n, Ord m, Ord l, IsString l) => n -> Graph n m l -> Graph n m l
+idEdge = pEdge . _idEdge
+
+isomorphism :: (Ord m, Ord n, Ord l, Num n, IsString l) => Graph n m l
+isomorphism = idEdge 1 .
+              idEdge 2 .
+              pEdge (1, "f", 2) .
+              pEdge (2, "g", 1) $ node 1 <> node 2
+
+-- Or using Arrows
+isomorphism2 :: (Ord m, Ord n, Ord l, Num n, IsString l) => Graph n m l
+isomorphism2 = pEdge (1, "f", 2) >>>
+               pEdge (2, "g", 1) >>>
+               idEdge 1 >>>
+               idEdge 2 $ mconcat [node 1, node 2]
+
+-- type SemDiag n m l = Graph n m l -> Diagram B
+type SemGraphViz n m l = Graph n m l -> String
+
+toGraphVizNode :: Show a => a -> String
+toGraphVizNode n = show n ++ "[label = " ++ show n ++  "];\n"
+
+toGraphVizEdge :: (Show a, Show b, Show c) => (a, [(b, c)]) -> String
+toGraphVizEdge (frm, xs) = helper xs
+  where helper [] = "\n"
+        helper ((lbl, to):ys) =
+          show frm ++ " -> " ++ show to ++
+          "[label = \"" ++ show lbl ++ "\"];\n" ++ helper ys
+
+
+toGraphViz :: (Show l, Show n) => String -> SemGraphViz n m l
+toGraphViz name (G (n, _)) =
+  "digraph " ++ name ++ "{\n" ++
+  "rankdir=LR2;\n" ++ concatMap toGraphVizNode (keys n)
+  ++ concatMap toGraphVizEdge (assocs n) ++ "}\n"
