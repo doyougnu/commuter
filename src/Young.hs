@@ -1,146 +1,156 @@
 -- | Module for Thursday week 3, showing an example shallow embedding
 module Young where
 
-import Data.Set                  (Set, member, fromList)
+import Data.Map
+import Control.Arrow                  ((&&&), (***), (>>>))
+import Data.Bifunctor                 (bimap, first, second)
+import Data.Monoid                    ((<>))
+import Data.String                    (IsString)
 
--------------------------------- Try 1 -----------------------------------------
--- | A naive first step
-data Prims a = Obj1 String a
-             | Morph1 String (Prims a) (Prims a)
+type Table n a = Map n a
 
--- This is just an arrow arr a b -> arr b c -> arr a c, without the computation
-comp :: Prims a -> Prims a -> Prims a
-comp (Obj1 name a) = undefined -- ??? Two domains?
+type Adj n l = Table n [(l, n)]        -- ^ an adjacency table via ns
+type NAdj n l = Adj n l                -- ^ node lbls n, func lbls l
+type EAdj l m = Adj l m                -- ^ func labels l, hfunc lbls m
 
--------------------------------- Try 2 -----------------------------------------
--- | Primitive types, take an a and a b, the a shall be used for identification
--- with b being the concrete data type
--- These are just for a 1-category
-data Obj2 a = Obj2 String a                        -- ^ an Object
-            deriving (Show,Eq,Ord)
+newtype Graph n m l = G { unG :: (Adj n l, EAdj l m)} -- ^ this graph can have arrows
+  deriving (Show,Eq)                                  -- ^ between nodes and arrows
+                                                      -- ^ between edges
 
-data Morph2 a b = Morph2 String (Obj2 a) (Obj2 b)  -- ^ a general morphism
-                deriving (Show,Eq,Ord)
+type Edge n l = (n, l, n)                   -- ^ abstracted edges, w/ labels
 
--- | A small category is a category s.t. all objects are Sets and a collection
--- of all morphisms is also a set (the hom-set)
-type Hom2 a b = Set (Morph2 a b)
+-- | Label is a function from Nodes to Labels
+type Label n l = n -> l
+data LGraph nl n m l = LGraph (Graph n m l) (Label nl l)
 
---notice that this diagram only allows on type of Objs
-type Diagram a = (Set (Obj2 a), Set (Morph2 a a))
+instance (Ord n, Ord l) => Monoid (Graph n m l) where
+  mempty = G (empty, empty)
+  mappend (G (a, b)) (G (c, d)) = G (a <> c, b <> d)
 
--- this means that a functor goes between diagrams
-functor :: (Ord a, Ord b) =>
-  Obj2 a -> Obj2 b -> Diagram a -> Diagram b -> Morph2 a b -- But where should
-                                                           -- this morphism
-                                                           -- live? In Diagram
-                                                           -- a? In Diagram b?
-                                                           -- In a diagram a b?
-                                                           -- The type won't
-                                                           -- allow that
-functor a@(Obj2 aName _) b@(Obj2 bName _) (dAOs, dAMs) (dBOs, dBMs)
-  | a `member` dAOs && b `member` dBOs = Morph2 ("F " ++ aName ++ " " ++ bName) a b
+-- | wonder which recursion scheme this is
+buildBy :: Ord k => (t -> k) -> (t -> a) -> [t] -> Map k [a]
+buildBy _    _     [] = empty
+buildBy fkey fedge xs = go xs empty
+  where
+    go [] mp = mp
+    go (y:ys) mp
+      | key `member` mp = go ys $ adjust ((:) edge) key mp
+      | otherwise = go ys $ insert key [edge] mp
+      where edge = fedge y
+            key = fkey y
 
--- notice that this category only allows morphisms  between the same types
-type SmallCategory2 a = (Obj2 (Set a), Hom2 a a)
+-- | Build an adjacency list for nodes
+buildTable :: Ord n => [Edge n l] -> Adj n l
+buildTable = buildBy fst_ sndAndThrd
+  where fst_ (a, _, _) = a
+        sndAndThrd (_, b, c) = (b, c)
 
--- | avoid the shift key
-morph :: String -> Obj2 a -> Obj2 b -> Morph2 a b
-morph = Morph2
+-- | take a map and unwind it, this does Map Node Edges -> [(Node, label, Node2)]
+unBuildBy :: (t -> a -> b) -> Map t [a] -> [b]
+unBuildBy f = foldrWithKey (\frm ex acc -> ex >>= flip (:) acc . f frm) []
 
-obj :: String -> a -> Obj2 a
-obj = Obj2
+unBuildT :: Adj n l -> [Edge n l]
+unBuildT = unBuildBy toTrip
+  where toTrip a (b, c) = (a, b, c)
 
--- | What about composition?
-(&) :: (Eq a, Eq b, Eq c) => Morph2 b c -> Morph2 a b -> Morph2 a c
-(&) (Morph2 n b2 c) (Morph2 m a b1)
-  | b1 == b2 = Morph2 (m ++ " o " ++ n) a c
-  | otherwise = error "error in composition! Cannot compose unlike objects!"
-infixr 9 &
+-- | build a graph with bounds and a list of edges
+buildGraph :: (Ord n, Ord l) => [Edge n l] -> [Edge l m] -> Graph n m l
+buildGraph es hs = G (buildTable es, buildTable hs)
 
-icancompose :: Morph2 Int Int
-icancompose = f & g
-  where f = morph "f" (obj "a" 1) (obj "b" 2)
-        g = morph "g" (obj "c" 1) (obj "d" 2)
+-- | An empty graph
+emptyGraph :: (Ord n, Ord l) => Graph n m l
+emptyGraph = mempty
 
--- | dual it!
-dual :: Morph2 a b -> Morph2 b a
-dual (Morph2 name a b) = Morph2 ("co-" ++ name) b a
+-- | Given a projection of a graph, and a graph return all the edges in the
+-- graph by the provided function
+-- OH GOD THIS GENERATED TYPE
+edgesBy :: (([Edge n1 l1], [Edge n2 l2]) -> t) -> (NAdj n1 l1, EAdj n2 l2) -> t
+edgesBy f g = f $ unBuildT *** unBuildT $ g
 
--- | the identity morphisms
-idMorph :: Obj2 a -> Morph2 a a
-idMorph x@(Obj2 name a) = Morph2 ("id_" ++ name) x x
+-- | Get all the plain edges in a graph
+plainEdges :: Graph n m l -> [Edge n l]
+plainEdges = edgesBy fst . unG
 
--- | Now build a isomorphism
-iso :: Diagram String
-iso = (objs, morphs)
-  where obj1 = obj "a" ""
-        obj2 = obj "b" ""
-        f = Morph2 "f" obj1 obj2
-        g = dual f
-        objs = fromList [obj1, obj2]
-        morphs = fromList [f, g, idMorph obj1, idMorph obj2]
--- all this specification is bad
+-- | Get all the hyper edges in a graph
+hyperEdges :: Graph n m l -> [Edge l m]
+hyperEdges = edgesBy snd . unG
 
--- | given two object construct a diagram showing isomorphism
-iso' :: (Ord a) => Obj2 a -> Obj2 a -> Diagram a
-iso' a b = (fromList [a,b], morphs)
-  where f = Morph2 "iso_f" a b
-        g = dual f
-        morphs = fromList [f, g, idMorph a, idMorph b]
+-- | decompose teh graph into just a list of edges
+decomposeGraph :: Graph n m l -> ([Edge n l], [Edge l m])
+decomposeGraph = plainEdges &&& hyperEdges
+
+-- | Flip all the arrow directions in a graph
+coGraph :: (Ord n, Ord l) => Graph n m l -> Graph n m l
+coGraph g = buildGraph es hs
+  where (es, hs) = bimap eFlip eFlip $ decomposeGraph g
+        eFlip xs = [ (to, l, fr) | (fr, l, to) <- xs ]
+
+-- | add an edge to a table
+addT :: (Ord n) => Edge n l -> Adj n l -> Adj n l
+addT (from, lbl, to) mp
+  | from `member` mp = adjust ((:) (lbl, to)) from mp
+  | otherwise = insert from [(lbl, to)] mp
+
+-- | Given a plain edge and a graph, add that edge to the graph
+pEdge :: (Ord n, Ord l) => Edge n l -> Graph n m l -> Graph n m l
+pEdge e = G . first (addT e) . unG
+
+-- | a hyper edge is from a edge to and edge
+hEdge :: (Ord l) => Edge l m -> Graph n m l -> Graph n m l
+hEdge e = G . second (addT e) . unG
+
+-- | Compose to edges
+o :: Monoid l => Edge n l -> Edge n l -> Edge n l -- this is monoidic
+o (_, ll, d) (a, l, _) = (a, ll <> l, d)
+
+-- Do I really want to constrain edge labels to strings like this?
+o' :: Show l => Edge n l -> Edge n l -> Edge n String
+o' (_, ll, d) (a, l, _) = (a, show ll ++ " o " ++ show l, d)
+
+-- | A node is just a singleton graph with no edges
+node :: (Ord n, Ord l) => n -> Graph n m l
+node k = G (singleton k [], empty)
+
+-- | An id edge is a edge from a node to itself with the label id
+_idEdge :: (IsString l) => n -> Edge n l
+_idEdge n = (n, "id", n)
+
+-- | Given a node, and a graph, create a id edge and add it to the graph
+idEdge :: (Ord n, Ord m, Ord l, IsString l) => n -> Graph n m l -> Graph n m l
+idEdge = pEdge . _idEdge
+
+isomorphism :: (Ord m, Ord n, Ord l, Num n, IsString l) => Graph n m l
+isomorphism = idEdge 1 .
+              idEdge 2 .
+              pEdge (1, "f", 2) .
+              pEdge (2, "g", 1) $ node 1 <> node 2
+
+-- Or using Arrows
+isomorphism2 :: (Ord m, Ord n, Ord l, Num n, IsString l) => Graph n m l
+isomorphism2 = pEdge (1, "f", 2) >>>
+               pEdge (2, "g", 1) >>>
+               idEdge 1 >>>
+               idEdge 2 $ mconcat [node 1, node 2]
+
+sumNodes :: Num n => Graph n m l -> n
+sumNodes = Prelude.foldr (+) 0 . keys . fst . unG
+
+-- type SemDiag n m l = Graph n m l -> Diagram B
+type SemGraphViz n m l = Graph n m l -> String
+
+toGraphVizNode :: Show a => a -> String
+toGraphVizNode n = show n ++ "[label = " ++ show n ++  "];\n"
+
+toGraphVizEdge :: (Show a, Show b, Show c) => (a, [(b, c)]) -> String
+toGraphVizEdge (frm, xs) = helper xs
+  where helper [] = "\n"
+        helper ((lbl, to):ys) =
+          show frm ++ " -> " ++ show to ++
+          "[label = \"" ++ show lbl ++ "\"];\n" ++ helper ys
 
 
--- | Lets make some different morphism
-simpleMorph :: String -> Obj2 a -> Obj2 a -> Morph2 a a
-simpleMorph = Morph2
-
-functor' :: String -> Obj2 a -> Obj2 b -> Morph2 a b
-functor' = Morph2
-
-endoFunctor' :: String -> Obj2 a -> Obj2 a -> Morph2 a a
-endoFunctor' = Morph2
-
--- | a monomorphsim is left-cancellable so f o g1 = f o g2 implies g1 == g2
-isMonomorphic :: (Eq a, Eq b, Eq c) =>
-  Morph2 b c -> Morph2 a b -> Morph2 a b -> Bool
-isMonomorphic f g1 g2
-  | f & g1 == f & g2 = True
-  | otherwise = False
-
--- | I have no real way of constraining this
-monomorph :: Morph2 a b
-monomorph = undefined
-
-epimorph :: Morph2 a b
-epimorph = dual monomorph
-
--- OH GOD DO I NEED DEPENDENT TYPES !?!??!?!
-
-------------------- What about higher ordered categories? -----------------------
-data Obj3 a = Obj3 String a
-  deriving (Show,Eq,Ord)
-
-data Morph3 a = Morph3 String (Obj3 a) (Obj3 a)
-              | NMorph (Morph3 a) (Morph3 a)
-              deriving (Show,Eq,Ord)
-
-
--- Summary of problems
-
--- 1. With the types in try 2 it is unclear how to handle the functor case. I
--- want a functor to be Diagram a -> Diagram b -> Diagram a b, clearly I need a
--- more expressive type that can hold multiple types
-
--- 2. I have no way of constraining the types of different morphisms or to
--- guarentee that a monomorphism is a monomorphism. I can add boiler plate to do
--- this, or I can use dependent types to constrain these. Either way, without
--- such constraints this DSL will be boring
-
--- 3. Programming in this is a pain. I should figure out a monoidal type and
--- make a monoidal instance so that I can build a diagram up by more constituent
--- parts. Take iso for example, this is a super simple diagram and it already
--- does not have the form i want
-
-
--- Conclusion: Flatten the type and just create a flattened structure that can
--- describe 1-categories and 2-categories
+toGraphViz :: (Show l, Show n) => String -> SemGraphViz n m l
+toGraphViz name (G (n, _)) =
+  "digraph " ++ name ++ "{\n" ++
+  "rankdir=LR2;\n" ++ concatMap toGraphVizNode (keys n)
+  ++ concatMap toGraphVizEdge (assocs n) ++ "}\n"
