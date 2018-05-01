@@ -64,8 +64,7 @@ emptyGraph = mempty
 -- | Given a projection of a graph, and a graph return all the edges in the
 -- graph by the provided function
 -- OH GOD THIS GENERATED TYPE
-edgesBy :: (([Edge n1 l1], [Edge n2 l2]) -> t)
-                 -> (NAdj n1 l1, EAdj n2 l2) -> t
+edgesBy :: (([Edge n1 l1], [Edge n2 l2]) -> t) -> (NAdj n1 l1, EAdj n2 l2) -> t
 edgesBy f g = f $ unBuildT *** unBuildT $ g
 
 -- | Get all the plain edges in a graph
@@ -104,9 +103,9 @@ hEdge e = G . second (addT e) . unG
 o :: Monoid l => Edge n l -> Edge n l -> Edge n l -- this is monoidic
 o (_, ll, d) (a, l, _) = (a, ll <> l, d)
 
+-- Do I really want to constrain edge labels to strings like this?
 o' :: Show l => Edge n l -> Edge n l -> Edge n String
 o' (_, ll, d) (a, l, _) = (a, show ll ++ " o " ++ show l, d)
-
 
 -- | A node is just a singleton graph with no edges
 node :: (Ord n, Ord l) => n -> Graph n m l
@@ -132,6 +131,9 @@ isomorphism2 = pEdge (1, "f", 2) >>>
                pEdge (2, "g", 1) >>>
                idEdge 1 >>>
                idEdge 2 $ mconcat [node 1, node 2]
+
+sumNodes :: Num n => Graph n m l -> n
+sumNodes = Prelude.foldr (+) 0 . keys . fst . unG
 
 -- type SemDiag n m l = Graph n m l -> Diagram B
 type SemGraphViz n m l = Graph n m l -> String
