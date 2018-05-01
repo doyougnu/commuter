@@ -25,11 +25,11 @@ dependencies:
 - containers
 - array
 - bifunctors
-# - diagrams
-# - diagrams-lib
-# - diagrams-contrib
-# - diagrams-svg
-# - diagrams-core
+- diagrams
+- diagrams-lib
+- diagrams-contrib
+- diagrams-svg
+- diagrams-core
 
 default-extensions:
   - FlexibleContexts
