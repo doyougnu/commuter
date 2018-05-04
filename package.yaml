@@ -30,6 +30,7 @@ dependencies:
 - diagrams-contrib
 - diagrams-svg
 - diagrams-core
+- SVGFonts
 
 default-extensions:
   - FlexibleContexts
@@ -37,6 +38,7 @@ default-extensions:
   - NoMonomorphismRestriction
   - OverloadedStrings
   - ViewPatterns
+  - GADTs
 
 library:
   source-dirs: src

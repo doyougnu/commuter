@@ -154,13 +154,3 @@ toGraphViz name (G (n, _)) =
   "digraph " ++ name ++ "{\n" ++
   "rankdir=LR2;\n" ++ concatMap toGraphVizNode (keys n)
   ++ concatMap toGraphVizEdge (assocs n) ++ "}\n"
-
-data F n = F (F n) | Empty deriving Show
-
-even_ :: F n -> Bool
-even_ Empty = True
-even_ (F n) = odd_ n
-
-odd_ :: F n -> Bool
-odd_ Empty = False
-odd_ (F n) = even_ n

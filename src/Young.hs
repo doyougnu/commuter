@@ -1,13 +1,33 @@
 -- | Module for Thursday week 3, showing an example shallow embedding
 module Young where
 
-import Data.Map
+
+import Diagrams.Prelude hiding (from, to, fc, (<>), adjust)
+import Diagrams.TwoD.Text
+import Diagrams.Backend.SVG.CmdLine
+import Graphics.SVGFonts
+
+
+import Data.Map                       ( Map
+                                      , lookup
+                                      , empty
+                                      , assocs
+                                      , adjust
+                                      , member
+                                      , insert
+                                      , keys
+                                      , singleton
+                                      , foldrWithKey
+                                      )
+import Prelude hiding                 (lookup)
 import Control.Arrow                  ((&&&), (***), (>>>))
 import Data.Bifunctor                 (bimap, first, second)
 import Data.Monoid                    ((<>))
 import Data.String                    (IsString)
 
 type Table n a = Map n a
+type Loc = (,) Double Double
+type LocTable n = Map n Loc
 
 type Adj n l = Table n [(l, n)]        -- ^ an adjacency table via ns
 type NAdj n l = Adj n l                -- ^ node lbls n, func lbls l
@@ -154,3 +174,23 @@ toGraphViz name (G (n, _)) =
   "digraph " ++ name ++ "{\n" ++
   "rankdir=LR2;\n" ++ concatMap toGraphVizNode (keys n)
   ++ concatMap toGraphVizEdge (assocs n) ++ "}\n"
+
+_node :: (Show n, Ord n, Monoid (Subdiagram b1 V2 Double Any)
+         , Renderable (Diagrams.TwoD.Text.Text Double) b1) =>
+  n -> LocTable n -> Subdiagram b1 V2 Double Any
+_node nm (lookup nm -> Just l) = mkSubdiagram  $ text (show nm) #
+                                fontSizeL 0.2 <> phantom (square 0.25 :: Diagram B)
+                                # named (show nm) # moveTo (p2 l)
+_node nm (lookup nm -> Nothing) = mkSubdiagram $ text (show nm)
+                                 # fontSizeL 0.2 <> phantom (square 0.25 :: Diagram B)
+                                 # named (show nm)
+_node _  _                      = mempty
+
+-- _arrow :: Diagram B -> l -> Diagram B -> LocTable l -> Diagram B
+-- _arrow f lbl t _ =
+
+getLoc = location $ _node "a" empty
+
+toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
+toDiagrams (G (ns, es)) _ _ = regPoly numOs 1
+  where numOs = length $ keys ns
