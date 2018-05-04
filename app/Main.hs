@@ -10,7 +10,7 @@ module Main where
 --   But I think some │ │ | major redesign might have to happen first. Arrows
 --   are complicated.
 
-import Young (toDiagrams, isomorphism, Graph)
+import Young (toDiagrams, isomorphism, Graph, test)
 import Data.Map (empty)
 import Diagrams.Prelude hiding (from, to, fc)
 import Diagrams.Backend.SVG.CmdLine
@@ -108,5 +108,6 @@ data Element = Obj Obj | Arr Arr
 
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
 main :: IO ()
-main = mainWith $ toDiagrams (isomorphism :: Graph Int Int String) empty empty # pad 3
+-- main = mainWith $ toDiagrams (isomorphism :: Graph Int Int String) empty empty # pad 3
+main = mainWith $ test
 -- main = return ()

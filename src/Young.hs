@@ -3,10 +3,11 @@ module Young where
 
 
 import Diagrams.Prelude hiding (from, to, fc, (<>), adjust)
-import Diagrams.TwoD.Text
 import Diagrams.Backend.SVG.CmdLine
-import Graphics.SVGFonts
 
+import Data.Typeable (Typeable)
+import Data.Text     (Text)
+import Data.String   (IsString, fromString)
 
 import Data.Map                       ( Map
                                       , lookup
@@ -175,21 +176,34 @@ toGraphViz name (G (n, _)) =
   "rankdir=LR2;\n" ++ concatMap toGraphVizNode (keys n)
   ++ concatMap toGraphVizEdge (assocs n) ++ "}\n"
 
-_node :: (Show n, Ord n, Monoid (Subdiagram b1 V2 Double Any)
-         , Renderable (Diagrams.TwoD.Text.Text Double) b1) =>
-  n -> LocTable n -> Subdiagram b1 V2 Double Any
-_node nm (lookup nm -> Just l) = mkSubdiagram  $ text (show nm) #
-                                fontSizeL 0.2 <> phantom (square 0.25 :: Diagram B)
-                                # named (show nm) # moveTo (p2 l)
-_node nm (lookup nm -> Nothing) = mkSubdiagram $ text (show nm)
-                                 # fontSizeL 0.2 <> phantom (square 0.25 :: Diagram B)
-                                 # named (show nm)
+-- _node nm (lookup nm -> Just l) = text (show nm) #
+--                                 fontSizeL 0.2 <> phantom (square 0.25 :: Diagram B)
+--                                 # named (show nm) # moveTo (p2 l)
+-- _node nm (lookup nm -> Nothing) = text (show nm)
+--                                  # fontSizeL 0.2 <> phantom (square 0.25 :: Diagram B)
+--                                  # named (show nm)
+-- _node _  _                      = mempty
+_node :: (IsString n, IsName n) => n -> LocTable n -> Diagram B
+_node nm (lookup nm -> Just l) = text (show nm) # fontSizeL 0.02 <> phantom (square 0.25 :: Diagram B)
+                                # named nm # moveTo (p2 l)
+_node nm (lookup nm -> Nothing) = text (show nm)
+                                  # fontSizeL 0.02 <> phantom (square 0.25 :: Diagram B)
+                                 # named nm
 _node _  _                      = mempty
 
--- _arrow :: Diagram B -> l -> Diagram B -> LocTable l -> Diagram B
--- _arrow f lbl t _ =
+newtype RendLabel = L {unL :: String} deriving (Typeable,Ord,Eq,Show)
+instance IsName RendLabel
+instance IsString RendLabel where fromString = L
 
-getLoc = location $ _node "a" empty
+-- _arrow :: n -> l -> n -> LocTable l -> Diagram B
+-- _arrow :: (Ord n, Typeable n, TrailLike (QDiagram b V2 n m), Floating n, IsName nm2, IsName nm1, Semigroup m) => nm1 -> p1 -> nm2 -> p2 -> QDiagram b V2 n m -> QDiagram b V2 n m
+_arrow f lbl t = withName f $ \b1 ->
+  withName t $ \b2 ->
+  atop $ arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
+
+-- getLoc = location $ _node "a" empty
+-- test :: (Semigroup m, Floating n, TrailLike (QDiagram b V2 n m), Typeable n, Ord n) => QDiagram b V2 n m -> QDiagram b V2 n m
+test = ((_node ("A" :: String) empty) ||| (_node ("B" :: String) empty)) # _arrow ("B" :: String) "f" ("A" :: String)
 
 toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
 toDiagrams (G (ns, es)) _ _ = regPoly numOs 1
