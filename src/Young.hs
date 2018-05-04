@@ -195,16 +195,18 @@ newtype RendLabel = L {unL :: String} deriving (Typeable,Ord,Eq,Show)
 instance IsName RendLabel
 instance IsString RendLabel where fromString = L
 
-arrLoc (location -> _p1) (location -> _p2) = (origin .+^ (_p1 .-. _p2) & _y +~ 0.06) ^* 0.5
+arrLoc (location -> _p1) (location -> _p2) = _p1 .+^ vec
+  where
+    vec = (_p2 .-. _p1) ^/ 2
+    -- v = fromOffsets [vec, r2 (0,0.6)]
 
 _arrow f lbl t = withName f $ \b1 ->
   withName t $ \b2 ->
   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
         <> alignedText 0 1  lbl # moveTo (arrLoc b1 b2) # fontSizeL 0.02)
 
--- getLoc = location $ _node "a" empty
--- test :: (Semigroup m, Floating n, TrailLike (QDiagram b V2 n m), Typeable n, Ord n) => QDiagram b V2 n m -> QDiagram b V2 n m
-test = ((_node ("A" :: String) empty) ||| (_node ("B" :: String) empty)) # _arrow ("B" :: String) "f" ("A" :: String)
+test = ((_node ("A" :: String) empty) ||| (_node ("B" :: String) empty) === _node ("C" :: String) empty)
+       # _arrow ("C" :: String) "f" ("A" :: String)
 
 toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
 toDiagrams (G (ns, es)) _ _ = regPoly numOs 1
