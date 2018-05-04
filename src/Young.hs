@@ -195,7 +195,7 @@ newtype RendLabel = L {unL :: String} deriving (Typeable,Ord,Eq,Show)
 instance IsName RendLabel
 instance IsString RendLabel where fromString = L
 
-arrLoc (location -> _p1) (location -> _p2) = (origin .+^ (_p1 .-. _p2) & _y +~ 0.08) ^* 0.5
+arrLoc (location -> _p1) (location -> _p2) = (origin .+^ (_p1 .-. _p2) & _y +~ 0.06) ^* 0.5
 
 _arrow f lbl t = withName f $ \b1 ->
   withName t $ \b2 ->
