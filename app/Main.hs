@@ -12,7 +12,7 @@ module Main where
 
 import Young (toDiagrams, isomorphism, Graph, test)
 import Data.Map (empty)
-import Diagrams.Prelude hiding (from, to, fc)
+import Diagrams.Prelude hiding (from, to)
 import Diagrams.Backend.SVG.CmdLine
 import Graphics.SVGFonts
 -- import Diagrams.TwoD.Arrow
@@ -109,5 +109,5 @@ data Element = Obj Obj | Arr Arr
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
 main :: IO ()
 -- main = mainWith $ toDiagrams (isomorphism :: Graph Int Int String) empty empty # pad 3
-main = mainWith $ test
+main = mainWith $ (square 2 :: Diagram B) # fc blue
 -- main = return ()
