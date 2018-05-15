@@ -109,5 +109,14 @@ data Element = Obj Obj | Arr Arr
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
 main :: IO ()
 -- main = mainWith $ toDiagrams (isomorphism :: Graph Int Int String) empty empty # pad 3
-main = mainWith $ (square 2 :: Diagram B) # fc blue
+main = mainWith $ (myCircle === mySquare) ||| myTri
+
+mySquare :: Diagram B
+mySquare = square 2 # fc blue # showOrigin
+
+myCircle :: Diagram B
+myCircle = circle 1 # fc brown # showOrigin
+
+myTri :: Diagram B
+myTri = triangle 1 # showOrigin
 -- main = return ()
