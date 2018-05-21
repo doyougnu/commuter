@@ -1,4 +1,4 @@
-module Core where
+module Internal.Core where
 
 import Diagrams.Prelude hiding (from, to, fc, (<>), adjust)
 
@@ -11,7 +11,7 @@ import Data.Map                       ( empty
 import Prelude hiding                 (lookup)
 import Control.Arrow                  ((&&&), (***))
 
-import Types
+import Internal.Types
 
 -- | wonder which recursion scheme this is
 buildBy :: Ord k => (t -> k) -> (t -> a) -> [t] -> Map k [a]

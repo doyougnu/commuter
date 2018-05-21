@@ -13,7 +13,7 @@ import Data.Map                       ( empty
                                       )
 import Prelude hiding                 (lookup)
 
-import Primitives
+import Internal.Types
 
 -- | The semantic function for Graphviz has the semantic domain of strings
 type SemGraphViz n m l = Graph n m l -> String
@@ -62,6 +62,9 @@ test :: QDiagram B V2 Double Any
 test = ((_node ("A" :: String) empty) ||| (_node ("B" :: String) empty) === _node ("C" :: String) empty)
        # _arrow ("C" :: String) "f" ("A" :: String)
 
-toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
-toDiagrams (G (ns, es)) _ _ = regPoly numOs 1
+-- toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
+toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) $ flip _node empty <$> keys ns
   where numOs = length $ keys ns
+        flatten (_, []) = []
+        flatten (x, (y, z):zs) = (x, y, z) : flatten (x, zs)
+        xs = flatten <$> assocs ns

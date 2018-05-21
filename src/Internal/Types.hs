@@ -1,4 +1,4 @@
-module Types ( module Data.Map
+module Internal.Types ( module Data.Map
              , module Data.String
              , LocTable
              , Graph(..)
@@ -19,6 +19,7 @@ type Adj n l = Table n [(l, n)]        -- ^ an adjacency table via ns
 type NAdj n l = Adj n l                -- ^ node lbls n, func lbls l
 type EAdj l m = Adj l m                -- ^ func labels l, hfunc lbls m
 
+-- | A graph with nodes (n), labels (l), and edges between edges (m)
 newtype Graph n m l = G { unG :: (Adj n l, EAdj l m)} -- ^ this graph can have arrows
   deriving (Show,Eq)                                  -- ^ between nodes and arrows
                                                       -- ^ between edges

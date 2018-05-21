@@ -10,29 +10,17 @@ module Main where
 --   But I think some │ │ | major redesign might have to happen first. Arrows
 --   are complicated.
 
-import Young (toDiagrams, isomorphism, Graph, test)
 import Data.Map (empty)
 import Diagrams.Prelude hiding (from, to)
 import Diagrams.Backend.SVG.CmdLine
 import Graphics.SVGFonts
--- import Diagrams.TwoD.Arrow
 
 import Data.Typeable (Typeable)
 import Data.Maybe (isJust)
+import Data.Text(Text)
 
-type Loc = (Double, Double)
-
-data Obj = O { name :: String
-               , oLoc :: Maybe Loc
-               }
-
-data Arr  = A { from :: Obj
-                , aName :: String
-                , to :: Obj
-                , aLoc :: Maybe Loc
-                }
-
-data Element = Obj Obj | Arr Arr
+import Comm
+import Sem
 
 -- class Locatable a where
 --   loc_ :: a -> Maybe Loc
@@ -107,9 +95,11 @@ data Element = Obj Obj | Arr Arr
 -- test = __arrow $ arrow_ (obj "A" Nothing) "f" (obj "B" Nothing) Nothing
 
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
+instance IsName Text
+
 main :: IO ()
--- main = mainWith $ toDiagrams (isomorphism :: Graph Int Int String) empty empty # pad 3
-main = mainWith $ allRDs
+main = mainWith $ toDiagrams mono empty empty # pad 3
+-- main = mainWith $ allRDs
 
 mySquare :: Diagram B
 mySquare = square 2 # fc blue # showOrigin
