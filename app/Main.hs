@@ -109,7 +109,7 @@ data Element = Obj Obj | Arr Arr
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
 main :: IO ()
 -- main = mainWith $ toDiagrams (isomorphism :: Graph Int Int String) empty empty # pad 3
-main = mainWith $ (myCircle === mySquare) ||| myTri
+main = mainWith $ allRDs
 
 mySquare :: Diagram B
 mySquare = square 2 # fc blue # showOrigin
@@ -119,4 +119,10 @@ myCircle = circle 1 # fc brown # showOrigin
 
 myTri :: Diagram B
 myTri = triangle 1 # showOrigin
+
+allDs :: Diagram B
+allDs = mconcat [myTri, myCircle, mySquare]
+
+allRDs :: Diagram B
+allRDs = mconcat $ reverse [myTri, myCircle, mySquare]
 -- main = return ()
