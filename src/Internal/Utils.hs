@@ -1,4 +1,4 @@
-module Util where
+module Utils where
 
 import Control.Arrow (first, second)
 import Data.Monoid   ((<>))
