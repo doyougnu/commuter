@@ -1,8 +1,8 @@
 module Comm where
 
 import Data.Text hiding (empty)
-import Control.Monad.State
 import Data.Monoid ((<>))
+import Control.Monad.Writer
 
 import Internal.Types
 import Internal.Utils
@@ -10,13 +10,16 @@ import Internal.Utils
 -- | A commuting Diagram is a graph where the nodes are strings and labels are strings
 type CommG = Graph Text Text Text
 
-type Eval a m = State (CommG) a
+type Eval a = Writer CommG a
 
-obj :: Text -> Eval (CommG) m
+obj' :: Text -> Eval ()
+obj' = tell . node
+
+obj :: Text -> Eval CommG
 obj = return . node
 
-arrow :: CommG -> Text -> CommG -> Eval (CommG) m
-arrow from lbl to = return $ pEdge' (fL, lbl, toL) $ from <> to
+arrow :: CommG -> Text -> CommG -> Eval ()
+arrow from lbl to = tell $ pEdge' (fL, lbl, toL) $ from <> to
   where fL = nodeLabel from
         toL = nodeLabel to
 
@@ -24,12 +27,14 @@ arrow from lbl to = return $ pEdge' (fL, lbl, toL) $ from <> to
 -- dupWith []  acc = CommG
 -- dupWith (x:xs) acc =
 
+mono' :: Eval ()
 mono' = do
-  obj "Z"
-  obj "X"
+  z <- obj "Z"
+  x <- obj "X"
   obj "Y"
+  arrow z "F" x
 
-runEval :: Eval a m -> CommG
-runEval = flip execState mempty
+runEval :: Eval a -> CommG
+runEval = execWriter
 
 mono = runEval mono'

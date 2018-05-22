@@ -1,7 +1,7 @@
 module Sem where
 
 import Diagrams.Backend.SVG.CmdLine
-import Diagrams.Prelude hiding (from, to, fc, (<>), adjust)
+import Diagrams.Prelude hiding (from, to, fc, (<>), adjust, trace)
 
 import Data.Typeable (Typeable)
 import Data.String   (IsString, fromString)
@@ -14,6 +14,7 @@ import Data.Map                       ( empty
 import Prelude hiding                 (lookup)
 
 import Internal.Types
+import Debug.Trace (trace)
 
 -- | The semantic function for Graphviz has the semantic domain of strings
 type SemGraphViz n m l = Graph n m l -> String
@@ -39,7 +40,7 @@ _node :: (IsString n, IsName n) => n -> LocTable n -> Diagram B
 _node nm (lookup nm -> Just l) = text (show nm) # fontSizeL 0.02 <> phantom (square 0.25 :: Diagram B)
                                  # named nm # moveTo (p2 l)
 _node nm (lookup nm -> Nothing) = text (show nm)
-                                  # fontSizeL 0.02 <> phantom (square 0.25 :: Diagram B)
+                                  # fontSizeL 0.22 <> phantom (square 0.25 :: Diagram B)
                                   # named nm
 _node _  _                      = mempty
 
@@ -63,8 +64,12 @@ test = ((_node ("A" :: String) empty) ||| (_node ("B" :: String) empty) === _nod
        # _arrow ("C" :: String) "f" ("A" :: String)
 
 -- toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
-toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) $ flip _node empty <$> keys ns
+toDiagrams :: (IsName n, IsString n) =>
+  Graph n m b -> p1 -> p2 -> QDiagram B V2 Double Any
+toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) nodes # _arrow (head ks) "FSDF" (last ks)
   where numOs = length $ keys ns
-        flatten (_, []) = []
-        flatten (x, (y, z):zs) = (x, y, z) : flatten (x, zs)
-        xs = flatten <$> assocs ns
+        -- flatten (_, []) = []
+        -- flatten (x, (y, z):zs) = (x, y, z) : flatten (x, zs)
+        -- xs = flatten <$> assocs ns
+        ks = keys ns
+        nodes = flip _node empty <$> ks
