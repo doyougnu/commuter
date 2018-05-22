@@ -37,10 +37,12 @@ toGraphViz name (G (n, _)) =
   ++ concatMap toGraphVizEdge (assocs n) ++ "}\n"
 
 _node :: (IsString n, IsName n) => n -> LocTable n -> Diagram B
-_node nm (lookup nm -> Just l) = text (show nm) # fontSizeL 0.02 <> phantom (square 0.25 :: Diagram B)
+_node nm (lookup nm -> Just l) = text (show nm) # fontSizeL 0.22
+                                 <> phantom (square 0.25 :: Diagram B)
                                  # named nm # moveTo (p2 l)
 _node nm (lookup nm -> Nothing) = text (show nm)
-                                  # fontSizeL 0.22 <> phantom (square 0.25 :: Diagram B)
+                                  # fontSizeL 0.22
+                                  <> phantom (square 0.25 :: Diagram B)
                                   # named nm
 _node _  _                      = mempty
 
