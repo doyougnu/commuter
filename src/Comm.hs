@@ -49,7 +49,7 @@ commTriangle a b c = do x <- obj a
                         z <- obj c
                         arrow' x "f" y
                         arrow' y "g" z
-                        arrow' z "f" x
+                        arrow' z "h" x
 
 commSq' :: Eval ()
 commSq' = do arrow "a" "f" "b"
@@ -57,16 +57,29 @@ commSq' = do arrow "a" "f" "b"
              arrow "c" "h" "d"
              arrow "d" "i" "a"
 
+commSq'' :: Eval ()
+commSq'' = mconcat $ zipWith3 arrow xs ys zs
+  where
+    xs = singleton <$> ['a'..'d'] -- convert to [Text]
+    ys = singleton <$> ['f'..'i']
+    zs = Prelude.tail xs ++ [Prelude.head xs] -- close the square
+
 mono' :: Eval ()
 mono' = do
   z <- obj "Z"
   x <- obj "X"
+  arrow' x "f" z
+
+mono'' :: Eval ()
+mono'' = do
+  z <- obj "Z"
+  x <- obj "X"
   obj' "Y"
-  arrow' z "F" x
+  arrow' x "f" z
 
 runEval :: Eval a -> CommG
 runEval = execWriter . unE
 
 mono = runEval mono'
 commSq = runEval commSq'
-test = runEval $ commSq' <> commTriangle "a" "b" "c"
+five = runEval $ commSq' <> commTriangle "n" "a" "b"

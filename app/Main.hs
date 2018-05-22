@@ -98,7 +98,7 @@ import Sem
 instance IsName Text
 
 main :: IO ()
-main = mainWith $ toDiagrams Comm.test empty empty # pad 3
+main = mainWith $ toDiagrams five empty empty # pad 3
 -- main = mainWith $ allRDs
 
 mySquare :: Diagram B
