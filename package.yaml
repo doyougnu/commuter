@@ -39,6 +39,7 @@ default-extensions:
   - NoMonomorphismRestriction
   - OverloadedStrings
   - ViewPatterns
+  - GeneralizedNewtypeDeriving
   - GADTs
 
 library:

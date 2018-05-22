@@ -59,19 +59,24 @@ arrLoc (location -> _p1) (location -> _p2) = _p1 .+^ vec
 _arrow f lbl t = withName f $ \b1 ->
   withName t $ \b2 ->
   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
-        <> alignedText 0 1  lbl # moveTo (arrLoc b1 b2) # fontSizeL 0.02)
+        <> alignedText 0 1 lbl # moveTo (arrLoc b1 b2) # fontSizeL 0.22)
 
 test :: QDiagram B V2 Double Any
 test = ((_node ("A" :: String) empty) ||| (_node ("B" :: String) empty) === _node ("C" :: String) empty)
        # _arrow ("C" :: String) "f" ("A" :: String)
 
 -- toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
-toDiagrams :: (IsName n, IsString n) =>
-  Graph n m b -> p1 -> p2 -> QDiagram B V2 Double Any
-toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) nodes # _arrow (head ks) "FSDF" (last ks)
+toDiagrams :: (IsName n, IsString n, Show l) =>
+  Graph n m l -> p1 -> p2 -> QDiagram B V2 Double Any
+toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) nodes # arrows
   where numOs = length $ keys ns
-        -- flatten (_, []) = []
-        -- flatten (x, (y, z):zs) = (x, y, z) : flatten (x, zs)
-        -- xs = flatten <$> assocs ns
+
+        flatten (_, []) = []
+        flatten (x, (y, z):zs) = (x, y, z) : flatten (x, zs)
+
+        xs = concatMap flatten $ assocs ns
         ks = keys ns
+
         nodes = flip _node empty <$> ks
+
+        arrows = mconcat $ (\(x,y,z) -> _arrow x (show y) z) <$> xs

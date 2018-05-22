@@ -8,7 +8,7 @@ module Internal.Types ( module Data.Map
              , NAdj
              , EAdj) where
 
-import Data.Map (Map, empty)
+import Data.Map (Map, empty, unionWith)
 import Data.String (IsString)
 
 type Table n a = Map n a
@@ -21,7 +21,7 @@ type EAdj l m = Adj l m                -- ^ func labels l, hfunc lbls m
 
 -- | A graph with nodes (n), labels (l), and edges between edges (m)
 newtype Graph n m l = G { unG :: (Adj n l, EAdj l m)} -- ^ this graph can have arrows
-  deriving (Show,Eq)                                  -- ^ between nodes and arrows
+  deriving (Show,Eq)                           -- ^ between nodes and arrows
                                                       -- ^ between edges
 
 type Edge n l = (n, l, n)                   -- ^ abstracted edges, w/ labels
@@ -32,4 +32,4 @@ data LGraph nl n m l = LGraph (Graph n m l) (Label nl l)
 
 instance (Ord n, Ord l) => Monoid (Graph n m l) where
   mempty = G (empty, empty)
-  mappend (G (a, b)) (G (c, d)) = G (a `mappend` c, b `mappend` d)
+  mappend (G (a, b)) (G (c, d)) = G (unionWith (++) a c, unionWith (++) b  d)

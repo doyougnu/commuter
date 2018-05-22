@@ -10,16 +10,32 @@ import Internal.Utils
 -- | A commuting Diagram is a graph where the nodes are strings and labels are strings
 type CommG = Graph Text Text Text
 
-type Eval a = Writer CommG a
+newtype Eval a = E {unE :: Writer CommG a}
+  deriving (Functor,Applicative,Monad)
+
+instance Monoid a => Monoid (Eval a) where
+  mempty = mempty
+  w1 `mappend` w2 = let (a1, s1) = runWriter $ unE w1
+                        (a2, s2) = runWriter $ unE w2
+                        in E . writer $ (a1 <> a2, s1 <> s2)
+
 
 obj' :: Text -> Eval ()
-obj' = tell . node
+obj' = E . tell . node
 
 obj :: Text -> Eval CommG
-obj = return . node
+obj = E . return . node
 
-arrow :: CommG -> Text -> CommG -> Eval ()
-arrow from lbl to = tell $ pEdge' (fL, lbl, toL) $ from <> to
+arrow' :: CommG -> Text -> CommG -> Eval ()
+arrow' from lbl to = E . tell $ pEdge' (fL, lbl, toL) $ from <> to
+  where fL = nodeLabel from
+        toL = nodeLabel to
+
+arrow :: Text -> Text -> Text -> Eval ()
+arrow fr lbl to = arrow' (node fr) lbl (node to)
+
+arrow'' :: CommG -> Text -> CommG -> CommG
+arrow'' from lbl to = pEdge' (fL, lbl, toL) $ from <> to
   where fL = nodeLabel from
         toL = nodeLabel to
 
@@ -30,28 +46,27 @@ arrow from lbl to = tell $ pEdge' (fL, lbl, toL) $ from <> to
 commTriangle :: Text -> Text -> Text -> Eval ()
 commTriangle a b c = do x <- obj a
                         y <- obj b
-                        c <- obj c
-                        arrow x "f" y
-                        arrow y "g" z
-                        arrow z "f" x
+                        z <- obj c
+                        arrow' x "f" y
+                        arrow' y "g" z
+                        arrow' z "f" x
 
-commAq a b c d = do j <- obj a
-                    k <- obj b
-                    l <- obj c
-                    n <- obj d
-                    arrow j "f" k
-                    arrow k "f" l
-                    arrow l "f" n
-                    arrow n "f" j
+commSq' :: Eval ()
+commSq' = do arrow "a" "f" "b"
+             arrow "b" "g" "c"
+             arrow "c" "h" "d"
+             arrow "d" "i" "a"
 
 mono' :: Eval ()
 mono' = do
   z <- obj "Z"
   x <- obj "X"
   obj' "Y"
-  arrow z "F" x
+  arrow' z "F" x
 
 runEval :: Eval a -> CommG
-runEval = execWriter
+runEval = execWriter . unE
 
 mono = runEval mono'
+commSq = runEval commSq'
+test = runEval $ commSq' <> commTriangle "a" "b" "c"
