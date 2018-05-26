@@ -24,12 +24,13 @@ dependencies:
 - text
 - containers
 - mtl
-- array
+- lens
 - bifunctors
 - diagrams
 - diagrams-lib
 - diagrams-contrib
 - diagrams-svg
+- diagrams-cairo
 - diagrams-core
 - SVGFonts
 

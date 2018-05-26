@@ -1,6 +1,6 @@
 module Sem where
 
-import Diagrams.Backend.SVG.CmdLine
+import Diagrams.Backend.Cairo.CmdLine
 import Diagrams.Prelude hiding (from, to, fc, (<>), adjust, trace)
 
 import Data.Typeable (Typeable)
