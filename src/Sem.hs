@@ -47,7 +47,6 @@ _node nm (lookup nm -> Nothing) = text (show nm)
 _node _  _                      = mempty
 
 newtype RendLabel = L {unL :: String} deriving (Typeable,Ord,Eq,Show)
-
 instance IsName RendLabel
 instance IsString RendLabel where fromString = L
 
@@ -68,7 +67,8 @@ test = ((_node ("A" :: String) empty) ||| (_node ("B" :: String) empty) === _nod
 -- toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
 toDiagrams :: (IsName n, IsString n, Show l) =>
   Graph n m l -> p1 -> p2 -> QDiagram B V2 Double Any
-toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) nodes # arrows
+-- toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) nodes # arrows
+toDiagrams (G (ns, es)) _ _ = mconcat nodes -- # arrows
   where numOs = length $ keys ns
 
         flatten (_, []) = []
@@ -79,4 +79,4 @@ toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) nodes # arrows
 
         nodes = flip _node empty <$> ks
 
-        arrows = mconcat $ (\(x,y,z) -> _arrow x (show y) z) <$> xs
+        -- arrows = mconcat $ (\(x,y,z) -> _arrow x (show y) z) <$> xs

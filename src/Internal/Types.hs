@@ -1,35 +1,73 @@
 module Internal.Types ( module Data.Map
-             , module Data.String
-             , LocTable
-             , Graph(..)
-             , LGraph(..)
-             , Edge
-             , Adj
-             , NAdj
-             , EAdj) where
+                      , Comm(..)
+                      , def
+                      , Loc'
+                      , Loc
+                      , Obj(..)
+                      , Morph(..)
+                      , Morph2(..)) where
 
-import Data.Map (Map, empty, unionWith)
-import Data.String (IsString)
 
-type Table n a = Map n a
-type Loc = (,) Double Double
-type LocTable n = Map n Loc
+import Data.Map           (Map, empty)
+import Data.Bifunctor     (Bifunctor(..))
+import Data.Bifoldable    (Bifoldable(..))
+import Data.Traversable   (Traversable)
+import Data.Bitraversable (Bitraversable(..))
+import GHC.Generics       (Generic)
+import Data.Default.Class
 
-type Adj n l = Table n [(l, n)]        -- ^ an adjacency table via ns
-type NAdj n l = Adj n l                -- ^ node lbls n, func lbls l
-type EAdj l m = Adj l m                -- ^ func labels l, hfunc lbls m
+type Table n a = Map n [a]
+data Loc' a b = Loc' { _x :: a
+                     , _y :: b
+                     } deriving (Functor,Foldable,Traversable,Show)
 
--- | A graph with nodes (n), labels (l), and edges between edges (m)
-newtype Graph n m l = G { unG :: (Adj n l, EAdj l m)} -- ^ this graph can have arrows
-  deriving (Show,Eq)                           -- ^ between nodes and arrows
-                                                      -- ^ between edges
+instance Bifunctor Loc' where bimap f g (Loc'{_x=x,_y=y}) = Loc' (f x) (g y)
+instance Bifoldable Loc' where bifoldr f g acc (Loc' {_x=x,_y=y}) = f x (g y acc)
+instance Bitraversable Loc' where bitraverse f g (Loc' {_x=x,_y=y}) = Loc' <$> f x <*> g y
 
-type Edge n l = (n, l, n)                   -- ^ abstracted edges, w/ labels
+type Loc = Maybe (Loc' Double Double)
+-- type Custom = Obj -> Obj
 
--- | Label is a function from Nodes to Labels
-type Label n l = n -> l
-data LGraph nl n m l = LGraph (Graph n m l) (Label nl l)
+data Type = Homo
+          | Mono
+          | Epi
+          | Bij
+          deriving (Eq,Show,Ord)
 
-instance (Ord n, Ord l) => Monoid (Graph n m l) where
-  mempty = G (empty, empty)
-  mappend (G (a, b)) (G (c, d)) = G (unionWith (++) a c, unionWith (++) b  d)
+
+data Obj = Obj { _name :: String              -- ^ an Objects label
+               , _oPos :: Loc                 -- ^ Position of the object
+               -- , _customizations :: [Custom]  -- ^ Any customizations the user wants to apply
+               , _frozen :: Bool              -- ^ Is the object able to be changed?
+               } deriving Show
+
+data Morph = Morph { _mLabel :: String              -- ^ the label for the arrow
+                   , _mTo    :: Obj                 -- ^ The object the arrow points to
+                   , _mPos   :: Loc                 -- ^ Position of the arrow
+                   , _types  :: [Type]              -- ^ The type of the arrow
+                   -- , _mCustomizations :: [Custom]   -- ^ Any customizations the user wants to apply
+                   } deriving (Generic,Show)
+
+data Morph2 = Morph2 { _m2Label :: String             -- ^ the label for the arrow
+                     , _m2To    :: Morph              -- ^ The object the arrow points to
+                     , _m2Pos   :: Loc                -- ^ Position of the natural transformation
+                     , _m2Types :: [Type]             -- ^ The type of the arrow
+                     -- , _m2Customizations :: [Custom]  -- ^ Any customizations the user wants to apply
+                     } deriving (Generic,Show)
+
+type Cat1 = Table Obj Morph
+type Cat2 = Table Morph Morph2
+
+-- | The Semantic Value for the DSL
+newtype Comm = C {unC :: (Cat1, Cat2)} deriving (Generic,Show)
+
+instance Eq Obj where Obj{_name=n} == Obj{_name=m} = n == m
+instance Ord Obj where compare Obj{_name=n} Obj{_name=m} = compare n m
+instance Default Obj where
+  def = Obj {_name=def,_oPos=Nothing
+            -- ,_customizations=[]
+            ,_frozen=False}
+instance Default Morph
+instance Default Morph2
+instance Default (Map k v) where def = empty
+instance Default Comm
