@@ -30,7 +30,7 @@ dependencies:
 - diagrams-lib
 - diagrams-contrib
 - diagrams-svg
-- diagrams-cairo
+- diagrams-pgf
 - diagrams-core
 - SVGFonts
 

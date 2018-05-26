@@ -45,13 +45,14 @@ extra-deps:
 - diagrams-core-1.4.1
 - diagrams-lib-1.4.2.1
 - diagrams-svg-1.4.1.1
-- diagrams-cairo-1.4.1
+- diagrams-pgf-1.4
 - cubicbezier-0.6.0.5
 - diagrams-solve-0.1.1
 - dual-tree-0.2.1.1
 - mfsolve-0.3.2.0
 - fast-math-1.0.2
 - SVGFonts-1.6.0.3
+- texrunner-0.0.1.1
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
