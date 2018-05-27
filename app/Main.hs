@@ -19,13 +19,13 @@ import Data.Typeable (Typeable)
 import Data.Maybe (isJust)
 import Data.Text(Text)
 
-import Comm
 import Sem
+import Internal.Core
 
 
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
 instance IsName Text
 
 main :: IO ()
-main = mainWith $ toDiagrams five empty empty # pad 3
+main = mainWith $ _node (mkObj "A") # pad 3
 -- main = mainWith $ allRDs
