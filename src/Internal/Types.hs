@@ -17,7 +17,7 @@ import           GHC.Generics       (Generic)
 
 data Loc' a b = Loc' { _x :: a
                      , _y :: b
-                     } deriving (Functor,Foldable,Traversable,Show)
+                     } deriving (Eq,Functor,Foldable,Traversable,Show)
 
 instance Bifunctor Loc' where bimap f g (Loc'{_x=x,_y=y}) = Loc' (f x) (g y)
 instance Bifoldable Loc' where bifoldr f g acc (Loc' {_x=x,_y=y}) = f x (g y acc)
@@ -75,3 +75,5 @@ instance Default Obj where
             , _fSize = 0.22}
 instance Default Morph'
 instance Default Morph2
+instance (Default a, Default b) => Default (Loc' a b)
+  where def = Loc' def def
