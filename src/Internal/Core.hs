@@ -109,9 +109,6 @@ setL floc tloc = overLoc_ (const floc) (const tloc)
 -- and codomains mathc. Then do the same with equivalence. that is on the domain
 -- of the LHS must match the domain on the RHS and the range on the RHS must
 -- match the range on the LHS
-o :: Morph' -> Morph' -> Equation
-f `o` g = E (f & mFrom .~ gTo) :.: E g
-  where gTo = g ^. mTo
 
 -- tri :: Morph' -> Morph' -> Morph' -> Equation
 -- tri f g h = (E $ trans (0,0) (2,0) f) :.: (E $ trans (2,0) (2, negate 2) g) :=: (E $ transL 2 (-2) h)

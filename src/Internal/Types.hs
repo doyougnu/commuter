@@ -45,6 +45,7 @@ data Morph' = Morph' { _mFrom  :: Obj                 -- ^ The object that origi
                      , _mTo    :: Obj                 -- ^ The object the arrow points to
                      , _mPos   :: Loc                 -- ^ Position of the arrow
                      , _types  :: [Type]              -- ^ The type of the arrow
+                     , _mfsize :: Double              -- ^ font size for the arrow label
                      -- , _mCustomizations :: [Custom]   -- ^ Any customizations the user wants to apply
                      } deriving (Generic,Show)
 
@@ -73,7 +74,14 @@ instance Default Obj where
             -- ,_customizations=[]
             ,_frozen=False
             , _fSize = 0.22}
-instance Default Morph'
+instance Default Morph' where
+  def = Morph' { _mFrom = def
+               , _mLabel = def
+               , _mTo = def
+               , _mPos = def
+               , _types = []
+               , _mfsize = 0.22
+               }
 instance Default Morph2
 instance (Default a, Default b) => Default (Loc' a b)
   where def = Loc' def def

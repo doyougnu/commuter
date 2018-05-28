@@ -1,7 +1,7 @@
 module Sem where
 
 import Diagrams.Backend.PGF.CmdLine
-import Diagrams.Prelude hiding ((<>))
+import Diagrams.Prelude hiding ((<>), E)
 
 -- import Data.Typeable (Typeable)
 -- import Data.String   (IsString, fromString)
@@ -87,18 +87,28 @@ _node :: Obj -> Diagram B
 _node Obj{..}
   | isNothing _oPos = def'
   | otherwise = def' # moveTo (p2 (cx,cy))
-  where def' = text (show _name) # fontSizeL _fSize
+  where def' = text _name # fontSizeL _fSize
                <> phantom (square 0.25 :: Diagram B)
                # named _name
         (Loc' cx cy)= fromJust _oPos
 
 -- _arrow :: Morph' -> Diagram B
-_arrow Morph'{..} =  withName (_mFrom ^. name) $ \b1 ->
-                                    withName (_mTo ^. name) $ \b2 ->
-                                                                atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
-                                                                      <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL 0.22)
+_arrow Morph'{..} =
+  withName (_mFrom ^. name) $ \b1 ->
+  withName (_mTo ^. name) $ \b2 ->
+  atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
+        <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
+m11 :: Morph'
+m11 = mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
+m2 = mkMph (mkObj "C") "g" (mkObj "D") & setL' (0,0) (0,2)
 
+test = E m11 :.: E m2
+
+sem' :: Equation -> Diagram B
+sem' (E arr@Morph'{..}) = (_node _mFrom <> _node _mTo) # _arrow arr
+sem' ((E f) :.: (E g)) = foldMap (sem' . E) [f & mFrom .~ g ^. mTo, g]
+-- sem' (E lhs) :=: (E rhs)  = sem' lhs <> sem' rhs
 
 -- sem :: Comm -> Diagram B
 -- sem [] acc = acc

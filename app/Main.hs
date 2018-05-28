@@ -11,7 +11,7 @@ module Main where
 --   are complicated.
 
 import Data.Map (empty)
-import Diagrams.Prelude hiding (from, to)
+import Diagrams.Prelude hiding (from, to, E)
 import Diagrams.Backend.PGF.CmdLine
 import Graphics.SVGFonts
 
@@ -20,6 +20,7 @@ import Data.Maybe (isJust)
 import Data.Text(Text)
 
 import Sem
+import Internal.Types
 import Internal.Core
 
 
@@ -27,5 +28,5 @@ import Internal.Core
 instance IsName Text
 
 main :: IO ()
-main = mainWith $ _node (mkObj "A") # pad 3
+main = mainWith $ sem' test # pad 3
 -- main = mainWith $ allRDs
