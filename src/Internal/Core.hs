@@ -39,23 +39,36 @@ transYL i m = m & mPos %~ non def . y +~ i
 transL :: Double -> Double -> Morph' -> Morph'
 transL x_ y_ m = m & transYL y_ . transXL x_
 
--- | Lenses produce some scary ass types. Given some double, and some selector
--- into the Morph' and a selector into an Obj, mutate the double at the location
--- by adding i
+-- | Given an x and y coordinate, use non default to wrap the maybe location
+-- with a default value. If the Location is Nothing, use the default and
+-- translate the x and y fields according to the input coords.
 updateXY :: Double -> Double -> Loc -> Loc
 updateXY x_ y_ = non def %~ (x +~ x_) . (y +~ y_)
 
+-- | Helper function that will mutate both the mFrom and mTo fields for a Morph
+-- given two Location setters
 trans_ :: (Loc -> Loc) -> (Loc -> Loc) -> Morph' -> Morph'
 trans_ f g = (mFrom . oPos %~ f) . (mTo . oPos %~ g)
 
+-- | Just mutate the from field for the morph
 transFrom :: Double -> Double -> Morph' -> Morph'
 transFrom = (flip trans_ id .) . updateXY
 
+-- | Just mutate the to field for the morph
 transTo :: Double -> Double -> Morph' -> Morph'
 transTo = (trans_ id .) . updateXY
 
-tri :: Morph' -> Morph' -> Morph' -> Equation
-tri f g h = (E $ transL 0 0 f) :.: (E $ transL 0 0 g) :=: (E $ transL 2 (-2) h)
+-- | given two pairs of coordinates apply both to the morph
+trans :: (Double, Double) -> (Double, Double) -> Morph' -> Morph'
+trans fcs tcs = trans_ (uncurry updateXY fcs) (uncurry updateXY tcs)
 
-sqr :: Morph' -> Morph' -> Morph' -> Morph' -> Equation
-sqr f g h i = (E $ transL 0 0 f) :.: (E $ transL 2 0 g) :=: (E h) :.: (E i)
+-- | TODO repeat the trans mutations but for setting instead of updating. Then
+-- define the composition operation to ensure that the lcoation of the domains
+-- and codomains mathc. Then do the same with equivalence. that is on the domain
+-- of the LHS must match the domain on the RHS and the range on the RHS must
+-- match the range on the LHS
+-- tri :: Morph' -> Morph' -> Morph' -> Equation
+-- tri f g h = (E $ trans (0,0) (2,0) f) :.: (E $ trans (2,0) (2, negate 2) g) :=: (E $ transL 2 (-2) h)
+
+-- sqr :: Morph' -> Morph' -> Morph' -> Morph' -> Equation
+-- sqr f g h i = (E $ transL 0 0 f) :.: (E $ transL 2 0 g) :=: (E h) :.: (E i)
