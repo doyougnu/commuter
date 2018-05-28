@@ -102,6 +102,19 @@ setL' fcs tcs = overLoc_ (uncurry setXY' fcs) (uncurry setXY' tcs)
 setL :: Loc -> Loc -> Morph' -> Morph'
 setL floc tloc = overLoc_ (const floc) (const tloc)
 
+domain :: Morph -> Obj
+domain (M m) = m ^. mFrom
+domain (_ :.: ns) = domain ns
+domain (_ :=: ns) = domain ns
+
+coDomain :: Morph -> Obj
+coDomain (M m) = m ^. mTo
+coDomain (ns :.: _) = coDomain ns
+coDomain (ns :=: _) = coDomain ns
+
+range :: Morph -> Obj
+range = coDomain
+
 -- | given two pairs of coordinates set both to the morph
 
 -- | TODO repeat the trans mutations but for setting instead of updating. Then

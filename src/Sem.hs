@@ -1,7 +1,7 @@
 module Sem where
 
 import Diagrams.Backend.PGF.CmdLine
-import Diagrams.Prelude hiding ((<>), E)
+import Diagrams.Prelude hiding ((<>), M)
 
 -- import Data.Typeable (Typeable)
 -- import Data.String   (IsString, fromString)
@@ -104,13 +104,14 @@ m11 = mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
 m2 = mkMph (mkObj "C") "g" (mkObj "D") & setL' (0,0) (0,2)
 m3 = mkMph (mkObj "E") "h" (mkObj "F") & setL' (2,2) (2,4)
 
-test = E m11 :.: E m2 :.: E m3
+test = M m11 :.: M m2 :=: M m3 :.: M m3
 
-sem' :: Equation -> Diagram B
-sem' (E arr@Morph'{..}) = (_node _mFrom <> _node _mTo) # _arrow arr
-sem' (E f :.: E g)      = foldMap (sem' . E) $ [f & mFrom .~ g ^. mTo, g]
-sem' (E f :.: a@(E g) :.: xs) = (sem' . E $  f & mFrom .~ g ^. mTo) <> sem' (a :.: xs)
--- sem' (E lhs) :=: (E rhs)  = sem' lhs <> sem' rhs
+sem' :: Morph -> Diagram B
+sem' (M arr@Morph'{..}) = (_node _mFrom <> _node _mTo) # _arrow arr
+sem' (m   :.: n) | m == n = sem' m
+sem' (M f :.: M g)      = foldMap (sem' . M) $ [f & mFrom .~ g ^. mTo, g]
+sem' (M f :.: a@(M g) :.: xs) = (sem' . M $  f & mFrom .~ g ^. mTo) <> sem' (a :.: xs)
+-- sem' (M lhs) :=: (M rhs)  = sem' lhs <> sem' rhs
 
 -- sem :: Comm -> Diagram B
 -- sem [] acc = acc

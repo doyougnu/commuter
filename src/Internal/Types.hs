@@ -4,7 +4,7 @@ module Internal.Types ( def
                       , Obj(..)
                       , Morph'(..)
                       , Morph2(..)
-                      , Equation(..)
+                      , Morph(..)
                       , Comm) where
 
 
@@ -59,21 +59,24 @@ data Morph2 = Morph2 { _m2From  :: Morph'            -- ^ The arrow the arrow po
 
 
 -- | The Semantic Value for the DSL, a Morph is really just an equation
-data Equation = E Morph'
-              | Equation :.: Equation
-              | Equation :=: Equation
-              deriving Show
+data Morph = M Morph'
+           | Morph :.: Morph
+           | Morph :=: Morph
+           deriving (Show,Eq)
 
-type Comm = [Equation]
+type Comm = [Morph]
 
 instance Eq Obj where Obj{_name=n} == Obj{_name=m} = n == m
+instance Eq Morph' where Morph'{_mLabel=l} == Morph'{_mLabel=k} = l == k
 instance Ord Obj where compare Obj{_name=n} Obj{_name=m} = compare n m
+
 instance Default Obj where
   def = Obj {_name=def
             ,_oPos=Nothing
             -- ,_customizations=[]
             ,_frozen=False
             , _fSize = 0.22}
+
 instance Default Morph' where
   def = Morph' { _mFrom = def
                , _mLabel = def
