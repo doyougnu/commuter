@@ -15,6 +15,7 @@ import Data.Maybe                     (fromJust, isNothing)
 -- import Prelude hiding                 (lookup)
 
 import Internal.Types
+import Internal.Core
 
 -- | The semantic function for Graphviz has the semantic domain of strings
 -- type SemGraphViz n m l = Graph n m l -> String
@@ -50,10 +51,10 @@ import Internal.Types
 -- instance IsName RendLabel
 -- instance IsString RendLabel where fromString = L
 
--- arrLoc :: (Fractional a, Additive v) => Subdiagram b1 v a m1 -> Subdiagram b2 v a m2 -> Point v a
--- arrLoc (location -> _p1) (location -> _p2) = _p1 .+^ vec
---   where
---     vec = (_p2 .-. _p1) ^/ 2
+arrLoc :: (Fractional a, Additive v) => Subdiagram b1 v a m1 -> Subdiagram b2 v a m2 -> Point v a
+arrLoc (location -> _p1) (location -> _p2) = _p1 .+^ vec
+  where
+    vec = (_p2 .-. _p1) ^/ 2
 
 -- _arrow f lbl t = withName f $ \b1 ->
 --   withName t $ \b2 ->
@@ -90,6 +91,13 @@ _node Obj{..}
                <> phantom (square 0.25 :: Diagram B)
                # named _name
         (Loc' cx cy)= fromJust _oPos
+
+-- _arrow :: Morph' -> Diagram B
+_arrow Morph'{..} =  withName (_mFrom ^. name) $ \b1 ->
+                                    withName (_mTo ^. name) $ \b2 ->
+                                                                atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
+                                                                      <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL 0.22)
+
 
 
 -- sem :: Comm -> Diagram B

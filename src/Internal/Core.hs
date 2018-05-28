@@ -29,18 +29,33 @@ mkMph2 lbl t = def & m2Label .~ lbl
 -- | Learning lenses. We tack the morphism, view the mPos field, because it's a
 -- maybe we supply a default, if its nothing replace it with a Loc' 0 0, and
 -- then scale the x field by the input double
-transX :: Double -> Morph' -> Morph'
-transX i m = m & mPos %~ non (Loc' 0 0) . x +~ i
+transXL :: Double -> Morph' -> Morph'
+transXL i m = m & mPos %~ non def . x +~ i
 
 -- | Same for Y
-transY :: Double -> Morph' -> Morph'
-transY i m = m & mPos %~ non (Loc' 0 0) . y +~ i
+transYL :: Double -> Morph' -> Morph'
+transYL i m = m & mPos %~ non def . y +~ i
 
-trans :: Double -> Double -> Morph' -> Morph'
-trans x_ y_ m = m & transY y_ . transX x_
+transL :: Double -> Double -> Morph' -> Morph'
+transL x_ y_ m = m & transYL y_ . transXL x_
+
+-- | Lenses produce some scary ass types. Given some double, and some selector
+-- into the Morph' and a selector into an Obj, mutate the double at the location
+-- by adding i
+updateXY :: Double -> Double -> Loc -> Loc
+updateXY x_ y_ = non def %~ (x +~ x_) . (y +~ y_)
+
+trans_ :: (Loc -> Loc) -> (Loc -> Loc) -> Morph' -> Morph'
+trans_ f g = (mFrom . oPos %~ f) . (mTo . oPos %~ g)
+
+transFrom :: Double -> Double -> Morph' -> Morph'
+transFrom = (flip trans_ id .) . updateXY
+
+transTo :: Double -> Double -> Morph' -> Morph'
+transTo = (trans_ id .) . updateXY
 
 tri :: Morph' -> Morph' -> Morph' -> Equation
-tri f g h = (E $ trans 0 0 f) :.: (E $ trans 2 0 g) :=: (E $ trans 2 (-2) h)
+tri f g h = (E $ transL 0 0 f) :.: (E $ transL 0 0 g) :=: (E $ transL 2 (-2) h)
 
 sqr :: Morph' -> Morph' -> Morph' -> Morph' -> Equation
-sqr f g h i = (E f) :.: (E g) :=: (E h) :.: (E i)
+sqr f g h i = (E $ transL 0 0 f) :.: (E $ transL 2 0 g) :=: (E h) :.: (E i)
