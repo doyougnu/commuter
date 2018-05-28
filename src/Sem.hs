@@ -102,12 +102,14 @@ _arrow Morph'{..} =
 m11 :: Morph'
 m11 = mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
 m2 = mkMph (mkObj "C") "g" (mkObj "D") & setL' (0,0) (0,2)
+m3 = mkMph (mkObj "E") "h" (mkObj "F") & setL' (2,2) (2,4)
 
-test = E m11 :.: E m2
+test = E m11 :.: E m2 :.: E m3
 
 sem' :: Equation -> Diagram B
 sem' (E arr@Morph'{..}) = (_node _mFrom <> _node _mTo) # _arrow arr
-sem' ((E f) :.: (E g)) = foldMap (sem' . E) [f & mFrom .~ g ^. mTo, g]
+sem' (E f :.: E g)      = foldMap (sem' . E) $ [f & mFrom .~ g ^. mTo, g]
+sem' (E f :.: a@(E g) :.: xs) = (sem' . E $  f & mFrom .~ g ^. mTo) <> sem' (a :.: xs)
 -- sem' (E lhs) :=: (E rhs)  = sem' lhs <> sem' rhs
 
 -- sem :: Comm -> Diagram B
