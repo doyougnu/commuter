@@ -1,18 +1,10 @@
 module Sem where
 
 import Diagrams.Backend.PGF.CmdLine
-import Diagrams.Prelude hiding ((<>), M)
+import Diagrams.Prelude hiding ((<>), tri)
 
--- import Data.Typeable (Typeable)
--- import Data.String   (IsString, fromString)
 import Data.Monoid                    ((<>))
 import Data.Maybe                     (fromJust, isNothing)
--- import Data.Map                       ( empty
---                                       , lookup
---                                       , keys
---                                       , assocs
---                                       )
--- import Prelude hiding                 (lookup)
 
 import Internal.Types
 import Internal.Core
@@ -99,18 +91,25 @@ _arrow Morph'{..} =
   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
-m11 :: Morph'
-m11 = mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
-m2 = mkMph (mkObj "C") "g" (mkObj "D") & setL' (0,0) (0,2)
-m3 = mkMph (mkObj "E") "h" (mkObj "F") & setL' (2,2) (2,4)
+m1 = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
+m2 = M $ mkMph (mkObj "C") "g" (mkObj "D") & setL' (2,0) (2,-2)
+m3 = M $mkMph (mkObj "A") "h" (mkObj "B") & setL' (0,0) (0,-2)
+m4 = M $mkMph (mkObj "E") "i" (mkObj "F") & setL' (0,-2) (2,-2)
 
-test = M m11 :.: M m2 :=: M m3 :.: M m3
+test = m4
 
 sem' :: Morph -> Diagram B
-sem' (M arr@Morph'{..}) = (_node _mFrom <> _node _mTo) # _arrow arr
-sem' (m   :.: n) | m == n = sem' m
-sem' (M f :.: M g)      = foldMap (sem' . M) $ [f & mFrom .~ g ^. mTo, g]
-sem' (M f :.: a@(M g) :.: xs) = (sem' . M $  f & mFrom .~ g ^. mTo) <> sem' (a :.: xs)
+sem' (M m) = (_node (_mFrom m) <> _node (_mTo m)) # _arrow m
+sem' (m :.: n)   | m == n = sem' m
+sem' (xs :.: ys) | coDomain ys == domain xs = foldMap sem' [xs, ys]
+                 | otherwise = error "Domain and codomain do not match in composition!"
+sem' (lhs :=: rhs)
+  | lDomain == rDomain && lRange == rRange = foldMap sem' [lhs, rhs]
+  | otherwise = error "domain and codomain of equivalence not equivalent!"
+  where lDomain = domain lhs
+        lRange  = range lhs
+        rDomain = domain rhs
+        rRange  = range rhs
 -- sem' (M lhs) :=: (M rhs)  = sem' lhs <> sem' rhs
 
 -- sem :: Comm -> Diagram B

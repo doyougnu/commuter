@@ -10,6 +10,7 @@ makeLenses ''Loc'
 makeLenses ''Obj
 makeLenses ''Morph'
 makeLenses ''Morph2
+makeLenses ''Morph''
 
 -- | Given a name create an object with that string as its name
 mkObj :: String -> Obj
@@ -102,6 +103,7 @@ setL' fcs tcs = overLoc_ (uncurry setXY' fcs) (uncurry setXY' tcs)
 setL :: Loc -> Loc -> Morph' -> Morph'
 setL floc tloc = overLoc_ (const floc) (const tloc)
 
+-- | these are just lenses I don't know how to write
 domain :: Morph -> Obj
 domain (M m) = m ^. mFrom
 domain (_ :.: ns) = domain ns
@@ -115,6 +117,28 @@ coDomain (ns :=: _) = coDomain ns
 range :: Morph -> Obj
 range = coDomain
 
+setDomain :: Obj -> Morph ->  Morph
+setDomain o (M m) = M $ m & mFrom .~ o
+setDomain o (ms :.: ns) = ms :.: setDomain o ns
+setDomain o (ms :=: ns) = setDomain o ms :=: setDomain o ns
+
+setRange :: Obj -> Morph -> Morph
+setRange o (M m) = M $ m & mTo .~ o
+setRange o (ms :.: ns) = setRange o ms :.: ns
+setRange o (ms :=: ns) = setRange o ms :=: setRange o ns
+
+-- | smart constructors. take two morphisms and force them to compose by prefering the rhs and setting the lhs domain to the rhs's range
+(|.|) :: Morph -> Morph -> Morph
+fs |.| gs = setDomain gRange fs :.: gs
+  where gRange  = range gs
+
+-- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
+-- codmain to that of the rhs
+(|=|) :: Morph -> Morph -> Morph
+lhs |=| rhs = (setRange rhsRange $ setDomain rhsDomain lhs) :=: rhs
+  where rhsDomain = domain rhs
+        rhsRange = range rhs
+
 -- | given two pairs of coordinates set both to the morph
 
 -- | TODO repeat the trans mutations but for setting instead of updating. Then
@@ -123,9 +147,8 @@ range = coDomain
 -- of the LHS must match the domain on the RHS and the range on the RHS must
 -- match the range on the LHS
 
--- tri :: Morph' -> Morph' -> Morph' -> Equation
--- tri f g h = (E $ trans (0,0) (2,0) f) :.: (E $ trans (2,0) (2, negate 2) g) :=: (E $ transL 2 (-2) h)
---   where
+tri :: Morph -> Morph -> Morph -> Morph
+tri f g h =  (f |.| g) |=| h
 
 -- sqr :: Morph' -> Morph' -> Morph' -> Morph' -> Equation
 -- sqr f g h i = (E $ transL 0 0 f) :.: (E $ transL 2 0 g) :=: (E h) :.: (E i)
