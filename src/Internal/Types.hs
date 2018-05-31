@@ -48,7 +48,7 @@ data Morph' = Morph' { _mFrom  :: Obj                 -- ^ The object that origi
                      , _types  :: [Type]              -- ^ The type of the arrow
                      , _mfsize :: Double              -- ^ font size for the arrow label
                      -- , _mCustomizations :: [Custom]   -- ^ Any customizations the user wants to apply
-                     } deriving (Generic,Show)
+                     } deriving (Generic)
 
 data Morph2 = Morph2 { _m2From  :: Morph'            -- ^ The arrow the arrow points from
                      , _m2Label :: String             -- ^ the label for the arrow
@@ -63,7 +63,10 @@ data Morph2 = Morph2 { _m2From  :: Morph'            -- ^ The arrow the arrow po
 data Morph'' a = M a
                | Morph'' a :.: Morph'' a
                | Morph'' a :=: Morph'' a
-           deriving (Show,Eq,Functor,Foldable,Traversable)
+           deriving (Eq,Functor,Foldable,Traversable)
+
+infix 4 :=:
+infixr 9 :.:
 
 type Morph = Morph'' Morph'
 type Comm = [Morph]
@@ -93,3 +96,11 @@ instance Default Morph' where
 instance Default Morph2
 instance (Default a, Default b) => Default (Loc' a b)
   where def = Loc' def def
+
+instance Show Morph' where
+  show Morph'{..} = (_name _mFrom) ++ " ~~> " ++ (_name _mTo)
+
+instance Show a => Show (Morph'' a) where
+  show (M m)  = show m
+  show (m1 :.: m2) = show m1 ++ " . " ++ show m2
+  show (m1 :=: m2) = show m1 ++ " = " ++ show m2

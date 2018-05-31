@@ -91,12 +91,13 @@ _arrow Morph'{..} =
   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
-m1 = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
-m2 = M $ mkMph (mkObj "C") "g" (mkObj "D") & setL' (2,0) (2,-2)
-m3 = M $mkMph (mkObj "A") "h" (mkObj "B") & setL' (0,0) (0,-2)
-m4 = M $mkMph (mkObj "E") "i" (mkObj "F") & setL' (0,-2) (2,-2)
+f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
+g = M $ mkMph (mkObj "C") "g" (mkObj "D") & setL' (2,0) (2,-2)
+h = M $mkMph (mkObj "A") "h" (mkObj "B") & setL' (0,0) (0,-2)
+i = M $mkMph (mkObj "E") "i" (mkObj "F") & setL' (0,-2) (2,-2)
 
-test = m4
+test = g |.| f |=| i |.| h
+-- test = (m2 |.| m1) |=| (m4 |.| m3)
 
 sem' :: Morph -> Diagram B
 sem' (M m) = (_node (_mFrom m) <> _node (_mTo m)) # _arrow m

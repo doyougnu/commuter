@@ -131,6 +131,7 @@ setRange o (ms :=: ns) = setRange o ms :=: setRange o ns
 (|.|) :: Morph -> Morph -> Morph
 fs |.| gs = setDomain gRange fs :.: gs
   where gRange  = range gs
+infixr 9 |.|
 
 -- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
 -- codmain to that of the rhs
@@ -138,7 +139,7 @@ fs |.| gs = setDomain gRange fs :.: gs
 lhs |=| rhs = (setRange rhsRange $ setDomain rhsDomain lhs) :=: rhs
   where rhsDomain = domain rhs
         rhsRange = range rhs
-
+infix 4 |=|
 -- | given two pairs of coordinates set both to the morph
 
 -- | TODO repeat the trans mutations but for setting instead of updating. Then
