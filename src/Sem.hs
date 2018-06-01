@@ -5,7 +5,6 @@ import Diagrams.Prelude hiding ((<>), tri)
 
 import Data.Monoid                    ((<>))
 import Data.Maybe                     (fromJust, isNothing)
-import Control.Monad.Except           (throwError, MonadError)
 
 import Internal.Types
 import Internal.Core
@@ -30,50 +29,10 @@ import Internal.Core
 --   "rankdir=LR2;\n" ++ concatMap toGraphVizNode (keys n)
 --   ++ concatMap toGraphVizEdge (assocs n) ++ "}\n"
 
--- _node :: (IsString n, IsName n) => n -> LocTable n -> Diagram B
--- _node nm (lookup nm -> Just l) = text (show nm) # fontSizeL 0.22
---                                  <> phantom (square 0.25 :: Diagram B)
---                                  # named nm # moveTo (p2 l)
--- _node nm (lookup nm -> Nothing) = text (show nm)
---                                   # fontSizeL 0.22
---                                   <> phantom (square 0.25 :: Diagram B)
---                                   # named nm
--- _node _  _                      = mempty
-
--- newtype RendLabel = L {unL :: String} deriving (Typeable,Ord,Eq,Show)
--- instance IsName RendLabel
--- instance IsString RendLabel where fromString = L
-
 arrLoc :: (Fractional a, Additive v) => Subdiagram b1 v a m1 -> Subdiagram b2 v a m2 -> Point v a
 arrLoc (location -> _p1) (location -> _p2) = _p1 .+^ vec
   where
     vec = (_p2 .-. _p1) ^/ 2
-
--- _arrow f lbl t = withName f $ \b1 ->
---   withName t $ \b2 ->
---   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
---         <> alignedText 0 1 lbl # moveTo (arrLoc b1 b2) # fontSizeL 0.22)
-
--- test :: QDiagram B V2 Double Any
--- test = ((_node ("A" :: String) empty) ||| (_node ("B" :: String) empty) === _node ("C" :: String) empty)
---        # _arrow ("C" :: String) "f" ("A" :: String)
-
--- -- toDiagrams :: Graph n m l -> LocTable n -> LocTable l -> Diagram B
--- toDiagrams :: (IsName n, IsString n, Show l) =>
---   Graph n m l -> p1 -> p2 -> QDiagram B V2 Double Any
--- -- toDiagrams (G (ns, es)) _ _ = atPoints (regPoly numOs 1) nodes # arrows
--- toDiagrams (G (ns, es)) _ _ = mconcat nodes -- # arrows
---   where numOs = length $ keys ns
-
---         flatten (_, []) = []
---         flatten (x, (y, z):zs) = (x, y, z) : flatten (x, zs)
-
---         xs = concatMap flatten $ assocs ns
---         ks = keys ns
-
---         nodes = flip _node empty <$> ks
-
---         -- arrows = mconcat $ (\(x,y,z) -> _arrow x (show y) z) <$> xs
 
 
 _node :: Obj -> Diagram B
@@ -92,13 +51,15 @@ _arrow Morph'{..} =
   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
-f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
-g = M $ mkMph (mkObj "C") "g" (mkObj "D") & setL' (2,0) (2,-2)
-h = M $ mkMph (mkObj "A") "h" (mkObj "B") & setL' (0,0) (0,-2)
-i = M $ mkMph (mkObj "E") "i" (mkObj "F") & setL' (0,-2) (2,-2)
-j = M $ mkMph (mkObj "A") "j" (mkObj "F") & setL' (0,0) (2,-2)
+-- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
+f = M $ mkMph (mkObj "A") "f" (mkObj "B") & setL' (0,0) (2,0)
+g = M $ mkMph (mkObj "B") "g" (mkObj "C") & setL' (2,0) (2,-2)
+h = M $ mkMph (mkObj "A") "h" (mkObj "C") & setL' (0,0) (2,-2)
+i = M $ mkMph (mkObj "A") "i" (mkObj "D") & setL' (0,0) (0,-2)
+j = M $ mkMph (mkObj "D") "j" (mkObj "C") & setL' (0,-2) (2,-2)
 
-test = tri f g h
+test :: Comm
+test = sqr g f j i
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 
 -- | TODO make |..| that is the current |.| and make |.| type check the domains and codomains. Lets us an Either type for this.
@@ -116,8 +77,6 @@ sem' (lhs :=: rhs)
         rRange  = range rhs
 -- sem' (M lhs) :=: (M rhs)  = sem' lhs <> sem' rhs
 
--- sem :: Comm -> Diagram B
-sem :: MonadError e (QDiagram B V2 Double) =>
-  Either e Morph -> QDiagram B V2 Double Any
-sem (Left err) = throwError err
+sem :: Show a => Either a Morph -> QDiagram B V2 Double Any
+sem (Left err) = error . show $ err
 sem (Right ms) = sem' ms

@@ -28,5 +28,5 @@ import Internal.Core
 instance IsName Text
 
 main :: IO ()
-main = mainWith $ sem' test # pad 3
+main = mainWith $ sem test # pad 3
 -- main = mainWith $ allRDs

@@ -17,6 +17,7 @@ import           Data.Bitraversable (Bitraversable (..))
 import           Data.Default.Class
 import           Data.Traversable   (Traversable)
 import           GHC.Generics       (Generic)
+import           Control.Monad.Except
 
 data Loc' a b = Loc' { _x :: a
                      , _y :: b
