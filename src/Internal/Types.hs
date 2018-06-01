@@ -77,7 +77,7 @@ infixr 3 :=:
 infixr 9 :.:
 
 type Morph = Morph'' Morph'
-type Comm = [Morph]
+type Comm = Either ErrMsg Morph
 
 instance Eq Obj where Obj{_name=n} == Obj{_name=m} = n == m
 instance Eq Morph' where

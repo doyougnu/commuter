@@ -135,19 +135,32 @@ fs |..| gs = setDomain gRange fs :.: gs
 
 -- | Smart constructor that will type check the morphisms domain and codomain
 infixr 9 |.|
-(|.|) :: Morph -> Morph -> Either ErrMsg Morph
+(|.|) :: Morph -> Morph -> Comm
 fs |.| gs | range gs == domain fs = Right $ fs :.: gs
           | otherwise = Left $ MisMatch err
-  where err = "The range of " ++ gs ^. mLabel ++ " does not match the domain of " ++ fs ^. mLabel
+  where err = "The range of " ++ show gs
+              ++ " does not match the domain of " ++ show fs
 
 
 -- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
 -- codmain to that of the rhs
-(|=|) :: Morph -> Morph -> Morph
-lhs |=| rhs = (setRange rhsRange $ setDomain rhsDomain lhs) :=: rhs
+infixr 3 |==|
+(|==|) :: Morph -> Morph -> Morph
+lhs |==| rhs = (setRange rhsRange $ setDomain rhsDomain lhs) :=: rhs
   where rhsDomain = domain rhs
         rhsRange = range rhs
+
 infixr 3 |=|
+(|=|) :: Morph -> Morph -> Comm
+lhs |=| rhs | lhsR == rhsR && lhsD == rhsD = Right $ lhs :=: rhs
+            | otherwise = Left $ MisMatch err
+  where lhsR = range lhs
+        lhsD = domain lhs
+        rhsR = range rhs
+        rhsD = domain rhs
+        err = "The range or domain of " ++ show lhs
+          ++ " does not match the range or domain of " ++ show rhs
+
 -- | given two pairs of coordinates set both to the morph
 
 -- | TODO repeat the trans mutations but for setting instead of updating. Then
@@ -156,8 +169,10 @@ infixr 3 |=|
 -- of the LHS must match the domain on the RHS and the range on the RHS must
 -- match the range on the LHS
 
-tri :: Morph -> Morph -> Morph -> Morph
-tri f g h =  (f |.| g) |=| h
+tri :: Morph -> Morph -> Morph -> Comm
+tri f g h =  f |.| g >>= (|=| h)
 
--- sqr :: Morph' -> Morph' -> Morph' -> Morph' -> Equation
--- sqr f g h i = (E $ transL 0 0 f) :.: (E $ transL 2 0 g) :=: (E h) :.: (E i)
+sqr :: Morph -> Morph -> Morph -> Morph -> Comm
+sqr f g h i = do lhs <- f |.| g
+                 rhs <- h |.| i
+                 lhs |=| rhs

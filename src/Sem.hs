@@ -5,6 +5,7 @@ import Diagrams.Prelude hiding ((<>), tri)
 
 import Data.Monoid                    ((<>))
 import Data.Maybe                     (fromJust, isNothing)
+import Control.Monad.Except           (throwError, MonadError)
 
 import Internal.Types
 import Internal.Core
@@ -97,7 +98,7 @@ h = M $ mkMph (mkObj "A") "h" (mkObj "B") & setL' (0,0) (0,-2)
 i = M $ mkMph (mkObj "E") "i" (mkObj "F") & setL' (0,-2) (2,-2)
 j = M $ mkMph (mkObj "A") "j" (mkObj "F") & setL' (0,0) (2,-2)
 
-test = j |=| g |.| f |=| i |.| h
+test = tri f g h
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 
 -- | TODO make |..| that is the current |.| and make |.| type check the domains and codomains. Lets us an Either type for this.
@@ -116,5 +117,7 @@ sem' (lhs :=: rhs)
 -- sem' (M lhs) :=: (M rhs)  = sem' lhs <> sem' rhs
 
 -- sem :: Comm -> Diagram B
--- sem [] acc = acc
--- sem (x:xs) acc = sem' x <> sem xs
+sem :: MonadError e (QDiagram B V2 Double) =>
+  Either e Morph -> QDiagram B V2 Double Any
+sem (Left err) = throwError err
+sem (Right ms) = sem' ms
