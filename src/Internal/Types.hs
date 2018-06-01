@@ -6,6 +6,8 @@ module Internal.Types ( def
                       , Morph2(..)
                       , Morph''(..)
                       , Morph
+                      , Err(..)
+                      , ErrMsg
                       , Comm) where
 
 
@@ -33,6 +35,12 @@ data Type = Homo
           | Bij
           deriving (Eq,Show,Ord)
 
+data Err a = MisMatch a
+           | NoObj a
+           | BadLoc a
+           deriving (Eq,Show,Functor,Foldable,Traversable)
+
+type ErrMsg = Err String
 
 data Obj = Obj { _name   :: String              -- ^ an Objects label
                , _oPos   :: Loc                 -- ^ Position of the object
@@ -65,7 +73,7 @@ data Morph'' a = M a
                | Morph'' a :=: Morph'' a
            deriving (Eq,Functor,Foldable,Traversable)
 
-infix 4 :=:
+infixr 3 :=:
 infixr 9 :.:
 
 type Morph = Morph'' Morph'

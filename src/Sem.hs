@@ -93,12 +93,14 @@ _arrow Morph'{..} =
 
 f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
 g = M $ mkMph (mkObj "C") "g" (mkObj "D") & setL' (2,0) (2,-2)
-h = M $mkMph (mkObj "A") "h" (mkObj "B") & setL' (0,0) (0,-2)
-i = M $mkMph (mkObj "E") "i" (mkObj "F") & setL' (0,-2) (2,-2)
+h = M $ mkMph (mkObj "A") "h" (mkObj "B") & setL' (0,0) (0,-2)
+i = M $ mkMph (mkObj "E") "i" (mkObj "F") & setL' (0,-2) (2,-2)
+j = M $ mkMph (mkObj "A") "j" (mkObj "F") & setL' (0,0) (2,-2)
 
-test = g |.| f |=| i |.| h
+test = j |=| g |.| f |=| i |.| h
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 
+-- | TODO make |..| that is the current |.| and make |.| type check the domains and codomains. Lets us an Either type for this.
 sem' :: Morph -> Diagram B
 sem' (M m) = (_node (_mFrom m) <> _node (_mTo m)) # _arrow m
 sem' (m :.: n)   | m == n = sem' m

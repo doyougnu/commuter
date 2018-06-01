@@ -128,10 +128,18 @@ setRange o (ms :.: ns) = setRange o ms :.: ns
 setRange o (ms :=: ns) = setRange o ms :=: setRange o ns
 
 -- | smart constructors. take two morphisms and force them to compose by prefering the rhs and setting the lhs domain to the rhs's range
-(|.|) :: Morph -> Morph -> Morph
-fs |.| gs = setDomain gRange fs :.: gs
+infixr 9 |..|
+(|..|) :: Morph -> Morph -> Morph
+fs |..| gs = setDomain gRange fs :.: gs
   where gRange  = range gs
+
+-- | Smart constructor that will type check the morphisms domain and codomain
 infixr 9 |.|
+(|.|) :: Morph -> Morph -> Either ErrMsg Morph
+fs |.| gs | range gs == domain fs = Right $ fs :.: gs
+          | otherwise = Left $ MisMatch err
+  where err = "The range of " ++ gs ^. mLabel ++ " does not match the domain of " ++ fs ^. mLabel
+
 
 -- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
 -- codmain to that of the rhs
@@ -139,7 +147,7 @@ infixr 9 |.|
 lhs |=| rhs = (setRange rhsRange $ setDomain rhsDomain lhs) :=: rhs
   where rhsDomain = domain rhs
         rhsRange = range rhs
-infix 4 |=|
+infixr 3 |=|
 -- | given two pairs of coordinates set both to the morph
 
 -- | TODO repeat the trans mutations but for setting instead of updating. Then
