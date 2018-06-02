@@ -3,6 +3,7 @@ module Internal.Core where
 
 import Control.Lens
 import Control.Monad.Except (catchError)
+import Control.Monad        (liftM2,liftM)
 
 import Internal.Types
 
@@ -105,15 +106,15 @@ setL :: Loc -> Loc -> Morph -> Morph
 setL floc tloc = overLoc_ (const floc) (const tloc)
 
 -- | these are just lenses I don't know how to write
-domain :: Comm Comp -> Comm Obj
-domain cs = fmap (_mFrom . last) cs `catchError` handler
+domain :: Comp -> Comm Obj
+domain cs = (return . _mFrom . last $ cs) `catchError` handler
   where handler _ = Left . NoObj $ "Could not find domain on: " ++ show cs
 
-coDomain :: Comm Comp -> Comm Obj
-coDomain cs = fmap (_mTo . head) cs `catchError` handler
+coDomain :: Comp -> Comm Obj
+coDomain cs = (return . _mTo . head $ cs) `catchError` handler
   where handler _ = Left . NoObj $ "Could not find range/coDomain on: " ++ show cs
 
-range :: Comm Comp -> Comm Obj
+range :: Comp -> Comm Obj
 range = coDomain
 
 setDomain' :: Obj -> Morph -> Morph
@@ -122,14 +123,22 @@ setDomain' = set mFrom
 setRange' :: Obj -> Morph -> Morph
 setRange' = set mTo
 
-setDomain :: Obj -> Comm Comp -> Comm Comp
-setDomain o es = es >>= return . fmap (set mFrom o)
+setDomain :: Obj -> Comp -> Comm Comp
+setDomain _ [] = Left . NoObj $ "Cannot set domain on empty composition"
+setDomain o (e:[]) = return $ setDomain' o e : []
+setDomain o (m:ms) = liftM2 (:) (return m) (setDomain o ms)
 
-setRange :: Obj -> Comm Comp -> Comm Comp
-setRange o es = es >>= return . fmap (set mTo o)
+setRange :: Obj -> Comp -> Comm Comp
+setRange _ [] = Left . NoObj $ "Cannot set range on empty composition"
+setRange o (e:[]) = return $ setRange' o e : []
+setRange o (m:ms) = liftM2 (:) (return m) (setRange o ms)
 
-liftMph :: Morph -> Comm Comp
-liftMph = return . pure
+liftToComp :: Morph -> Comm Comp
+liftToComp = return . pure
+
+liftToEqu :: Morph -> Comm Equ
+liftToEqu = return . pure . pure
+
 
 -- | smart constructors. take two morphisms and force them to compose by prefering the rhs and setting the lhs domain to the rhs's range
 infixr 9 |..|
@@ -140,69 +149,75 @@ fs |..| gs = [fs',gs]
 
 -- | Smart constructor that will type check the morphisms domain and codomain
 infixr 9 |.|
-(|.|) :: Comm Comp -> Comm Comp -> Comm Comp
-fs |.| gs | range gs == domain fs = (++) <$> fs <*> gs
-          | otherwise = Left $ MisMatch err
+(|.|) :: Comp -> Comp -> Comm Comp
+fs |.| gs = do rngGs <- range gs
+               dmnFs <- domain fs
+               if rngGs == dmnFs
+                  then return $ fs ++ gs
+                  else Left $ MisMatch err
   where err = "The range of " ++ show gs
               ++ " does not match the domain of " ++ show fs
 
 
 -- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
 -- codmain to that of the rhs
+infixr 3 |=|
+(|=|) :: Comp -> Comp -> Comm Equ
+lhs |=| rhs = do rhsDomain <- domain rhs
+                 rhsRange <- range rhs
+                 lhs' <- setDomain rhsDomain lhs
+                 lhs'' <- setRange rhsRange lhs'
+                 return $ [lhs'', rhs]
+
 infixr 3 |==|
 (|==|) :: Comm Comp -> Comm Comp -> Comm Equ
-lhs |==| rhs = do rhsDomain <- domain rhs
-                  rhsRange <- range rhs
-                  lhs' <- setDomain rhsDomain lhs
-                  lhs'' <- setRange rhsRange (return lhs')
-                  rhs' <- rhs
-                  return $ [lhs'', rhs']
+lhs |==| rhs = do lhsR <- lhs >>= range
+                  lhsD <- lhs >>= domain
+                  rhsR <- rhs >>= range
+                  rhsD <- rhs >>= domain
+                  if lhsR == rhsR && lhsD == rhsD
+                     then sequence $ [lhs,rhs]
+                     else Left $ MisMatch err
+  where
+    err = "The range or domain of " ++ show lhs
+      ++ " does not match the range or domain of " ++ show rhs
 
--- infixr 3 |=|
--- (|=|) :: Morph -> Morph -> Comm
--- lhs |=| rhs | lhsR == rhsR && lhsD == rhsD = Right $ lhs :=: rhs
---             | otherwise = Left $ MisMatch err
---   where lhsR = range lhs
---         lhsD = domain lhs
---         rhsR = range rhs
---         rhsD = domain rhs
---         err = "The range or domain of " ++ show lhs
---           ++ " does not match the range or domain of " ++ show rhs
+-- | given two pairs of coordinates set both to the morph
 
--- -- | given two pairs of coordinates set both to the morph
+-- | TODO repeat the trans mutations but for setting instead of updating. Then
+-- define the composition operation to ensure that the lcoation of the domains
+-- and codomains mathc. Then do the same with equivalence. that is on the domain
+-- of the LHS must match the domain on the RHS and the range on the RHS must
+-- match the range on the LHS
 
--- -- | TODO repeat the trans mutations but for setting instead of updating. Then
--- -- define the composition operation to ensure that the lcoation of the domains
--- -- and codomains mathc. Then do the same with equivalence. that is on the domain
--- -- of the LHS must match the domain on the RHS and the range on the RHS must
--- -- match the range on the LHS
-
--- tri :: Morph -> Morph -> Morph -> Comm
--- tri f g h =  f |.| g >>= (|=| h)
-
--- sqr :: Morph -> Morph -> Morph -> Morph -> Comm
--- sqr f g h i = do lhs <- f |.| g
---                  rhs <- h |.| i
---                  lhs |=| rhs
-
--- labels :: Morph -> [String]
--- labels (M a) = pure $ a ^. mLabel
--- labels (ns :.: ms) = labels ns ++ labels ms
--- labels (ns :=: ms) = labels ns ++ labels ms
-
--- elem' :: Morph -> String -> Bool
--- elem' (M a) str = str == a ^. mLabel
--- elem' (ns :.: ms) str = elem' ns str && elem' ms str
--- elem' (ns :=: ms) str = elem' ns str && elem' ms str
+tri :: Morph -> Morph -> Morph -> Comm Equ
+tri (pure -> f) (pure -> g) h = f |.| g |==| (return . pure $ h)
 
 
--- -- lhsBy :: Morph -> (Morph -> Bool) -> Maybe Morph
--- -- lhsBy a@(M x) f acc
--- --   | f a == True = Just acc
--- --   | otherwise = Nothing
--- -- lhsBy (ms :.: ns) f acc =
--- -- lhsBy (ms :=: ns) f
+sqr :: Morph -> Morph -> Morph -> Morph -> Comm Equ
+sqr (pure -> f) (pure -> g) (pure -> h) (pure -> i) =
+  do lhs <- f |.| g
+     rhs <- h |.| i
+     lhs |=| rhs
 
--- -- join :: Morph -> Morph -> Morph
--- -- join m1 m2 = go l
--- --   where (l:ls) = L.intersect (labels m1) (labels m2)
+-- -- labels :: Morph -> [String]
+-- -- labels (M a) = pure $ a ^. mLabel
+-- -- labels (ns :.: ms) = labels ns ++ labels ms
+-- -- labels (ns :=: ms) = labels ns ++ labels ms
+
+-- -- elem' :: Morph -> String -> Bool
+-- -- elem' (M a) str = str == a ^. mLabel
+-- -- elem' (ns :.: ms) str = elem' ns str && elem' ms str
+-- -- elem' (ns :=: ms) str = elem' ns str && elem' ms str
+
+
+-- -- -- lhsBy :: Morph -> (Morph -> Bool) -> Maybe Morph
+-- -- -- lhsBy a@(M x) f acc
+-- -- --   | f a == True = Just acc
+-- -- --   | otherwise = Nothing
+-- -- -- lhsBy (ms :.: ns) f acc =
+-- -- -- lhsBy (ms :=: ns) f
+
+-- -- -- join :: Morph -> Morph -> Morph
+-- -- -- join m1 m2 = go l
+-- -- --   where (l:ls) = L.intersect (labels m1) (labels m2)
