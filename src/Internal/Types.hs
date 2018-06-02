@@ -6,8 +6,8 @@ module Internal.Types ( def
                       , Morph2(..)
                       , Err(..)
                       , ErrMsg
-                      , Comp(..)
-                      , Equ(..)
+                      , Comp
+                      , Equ
                       , Comm) where
 
 
@@ -69,8 +69,8 @@ data Morph2 = Morph2 { _m2From  :: Morph            -- ^ The arrow the arrow poi
 
 -- | The Semantic Value for the DSL, a Morph is really just an equation
 -- | TODO this type needs to change I do think we should go down the list route
-newtype Comp = Comp { unC :: [Morph] } deriving (Show)
-newtype Equ  = Equ { unE :: [Comp] } deriving Show
+type Comp = [Morph]
+type Equ  = [Comp]
 
 type Comm = Either ErrMsg
 

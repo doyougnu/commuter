@@ -2,8 +2,10 @@
 module Internal.Core where
 
 import Control.Lens
+import Control.Monad.Except (catchError)
 
 import Internal.Types
+
 
 -- | now we derive lenses for this mess
 makeLenses ''Loc'
@@ -103,51 +105,58 @@ setL :: Loc -> Loc -> Morph -> Morph
 setL floc tloc = overLoc_ (const floc) (const tloc)
 
 -- | these are just lenses I don't know how to write
-domain :: Comm Equ -> Comm Obj
-domain cs = do cs' <- cs
-               return . _mFrom . last . unC . head . unE $ cs' `catchError` handler
-  where handler = Left $ NoObj "Could not find domain of: " ++ show cs
+domain :: Comm Comp -> Comm Obj
+domain cs = fmap (_mFrom . last) cs `catchError` handler
+  where handler _ = Left . NoObj $ "Could not find domain on: " ++ show cs
 
--- coDomain :: Morph -> Obj
--- coDomain (M m) = m ^. mTo
--- coDomain (ns :.: _) = coDomain ns
--- coDomain (ns :=: _) = coDomain ns
+coDomain :: Comm Comp -> Comm Obj
+coDomain cs = fmap (_mTo . head) cs `catchError` handler
+  where handler _ = Left . NoObj $ "Could not find range/coDomain on: " ++ show cs
 
--- range :: Morph -> Obj
--- range = coDomain
+range :: Comm Comp -> Comm Obj
+range = coDomain
 
--- setDomain :: Obj -> Morph ->  Morph
--- setDomain o (M m) = M $ m & mFrom .~ o
--- setDomain o (ms :.: ns) = ms :.: setDomain o ns
--- setDomain o (ms :=: ns) = setDomain o ms :=: setDomain o ns
+setDomain' :: Obj -> Morph -> Morph
+setDomain' = set mFrom
 
--- setRange :: Obj -> Morph -> Morph
--- setRange o (M m) = M $ m & mTo .~ o
--- setRange o (ms :.: ns) = setRange o ms :.: ns
--- setRange o (ms :=: ns) = setRange o ms :=: setRange o ns
+setRange' :: Obj -> Morph -> Morph
+setRange' = set mTo
 
--- -- | smart constructors. take two morphisms and force them to compose by prefering the rhs and setting the lhs domain to the rhs's range
--- infixr 9 |..|
--- (|..|) :: Morph -> Morph -> Morph
--- fs |..| gs = setDomain gRange fs :.: gs
---   where gRange  = range gs
+setDomain :: Obj -> Comm Comp -> Comm Comp
+setDomain o es = es >>= return . fmap (set mFrom o)
 
--- -- | Smart constructor that will type check the morphisms domain and codomain
--- infixr 9 |.|
--- (|.|) :: Morph -> Morph -> Comm
--- fs |.| gs | range gs == domain fs = Right $ fs :.: gs
---           | otherwise = Left $ MisMatch err
---   where err = "The range of " ++ show gs
---               ++ " does not match the domain of " ++ show fs
+setRange :: Obj -> Comm Comp -> Comm Comp
+setRange o es = es >>= return . fmap (set mTo o)
+
+liftMph :: Morph -> Comm Comp
+liftMph = return . pure
+
+-- | smart constructors. take two morphisms and force them to compose by prefering the rhs and setting the lhs domain to the rhs's range
+infixr 9 |..|
+(|..|) :: Morph -> Morph -> Comp
+fs |..| gs = [fs',gs]
+  where gRange = _mTo gs
+        fs' = setDomain' gRange fs
+
+-- | Smart constructor that will type check the morphisms domain and codomain
+infixr 9 |.|
+(|.|) :: Comm Comp -> Comm Comp -> Comm Comp
+fs |.| gs | range gs == domain fs = (++) <$> fs <*> gs
+          | otherwise = Left $ MisMatch err
+  where err = "The range of " ++ show gs
+              ++ " does not match the domain of " ++ show fs
 
 
--- -- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
--- -- codmain to that of the rhs
--- infixr 3 |==|
--- (|==|) :: Morph -> Morph -> Morph
--- lhs |==| rhs = (setRange rhsRange $ setDomain rhsDomain lhs) :=: rhs
---   where rhsDomain = domain rhs
---         rhsRange = range rhs
+-- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
+-- codmain to that of the rhs
+infixr 3 |==|
+(|==|) :: Comm Comp -> Comm Comp -> Comm Equ
+lhs |==| rhs = do rhsDomain <- domain rhs
+                  rhsRange <- range rhs
+                  lhs' <- setDomain rhsDomain lhs
+                  lhs'' <- setRange rhsRange (return lhs')
+                  rhs' <- rhs
+                  return $ [lhs'', rhs']
 
 -- infixr 3 |=|
 -- (|=|) :: Morph -> Morph -> Comm
