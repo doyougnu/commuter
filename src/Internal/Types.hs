@@ -2,12 +2,12 @@ module Internal.Types ( def
                       , Loc'(..)
                       , Loc
                       , Obj(..)
-                      , Morph'(..)
+                      , Morph(..)
                       , Morph2(..)
-                      , Morph''(..)
-                      , Morph
                       , Err(..)
                       , ErrMsg
+                      , Comp(..)
+                      , Equ(..)
                       , Comm) where
 
 
@@ -17,7 +17,6 @@ import           Data.Bitraversable (Bitraversable (..))
 import           Data.Default.Class
 import           Data.Traversable   (Traversable)
 import           GHC.Generics       (Generic)
-import           Control.Monad.Except
 
 data Loc' a b = Loc' { _x :: a
                      , _y :: b
@@ -50,7 +49,7 @@ data Obj = Obj { _name   :: String              -- ^ an Objects label
                , _fSize  :: Double            -- ^ Font size of the object label
                } deriving Show
 
-data Morph' = Morph' { _mFrom  :: Obj                 -- ^ The object that originates the arrow
+data Morph = Morph { _mFrom  :: Obj                 -- ^ The object that originates the arrow
                      , _mLabel :: String              -- ^ the label for the arrow
                      , _mTo    :: Obj                 -- ^ The object the arrow points to
                      , _mPos   :: Loc                 -- ^ Position of the arrow
@@ -59,9 +58,9 @@ data Morph' = Morph' { _mFrom  :: Obj                 -- ^ The object that origi
                      -- , _mCustomizations :: [Custom]   -- ^ Any customizations the user wants to apply
                      } deriving (Generic)
 
-data Morph2 = Morph2 { _m2From  :: Morph'            -- ^ The arrow the arrow points from
+data Morph2 = Morph2 { _m2From  :: Morph            -- ^ The arrow the arrow points from
                      , _m2Label :: String             -- ^ the label for the arrow
-                     , _m2To    :: Morph'              -- ^ The arrow the arrow points to
+                     , _m2To    :: Morph              -- ^ The arrow the arrow points to
                      , _m2Pos   :: Loc                -- ^ Position of the natural transformation
                      , _m2Types :: [Type]             -- ^ The type of the arrow
                      -- , _m2Customizations :: [Custom]  -- ^ Any customizations the user wants to apply
@@ -69,20 +68,15 @@ data Morph2 = Morph2 { _m2From  :: Morph'            -- ^ The arrow the arrow po
 
 
 -- | The Semantic Value for the DSL, a Morph is really just an equation
-data Morph'' a = M a
-               | Morph'' a :.: Morph'' a
-               | Morph'' a :=: Morph'' a
-           deriving (Eq,Functor,Foldable,Traversable)
+-- | TODO this type needs to change I do think we should go down the list route
+newtype Comp = Comp { unC :: [Morph] } deriving (Show)
+newtype Equ  = Equ { unE :: [Comp] } deriving Show
 
-infixr 3 :=:
-infixr 9 :.:
-
-type Morph = Morph'' Morph'
-type Comm = Either ErrMsg Morph
+type Comm = Either ErrMsg
 
 instance Eq Obj where Obj{_name=n} == Obj{_name=m} = n == m
-instance Eq Morph' where
-  Morph'{_mFrom=lf,_mTo=lt,_mLabel=ll} == Morph'{_mFrom=rf,_mTo=rt,_mLabel=rl}
+instance Eq Morph where
+  Morph{_mFrom=lf,_mTo=lt,_mLabel=ll} == Morph{_mFrom=rf,_mTo=rt,_mLabel=rl}
     = lf == rf && lt == rt && ll == rl
 
 instance Ord Obj where compare Obj{_name=n} Obj{_name=m} = compare n m
@@ -94,8 +88,8 @@ instance Default Obj where
             ,_frozen=False
             , _fSize = 0.22}
 
-instance Default Morph' where
-  def = Morph' { _mFrom = def
+instance Default Morph where
+  def = Morph { _mFrom = def
                , _mLabel = def
                , _mTo = def
                , _mPos = def
@@ -106,10 +100,5 @@ instance Default Morph2
 instance (Default a, Default b) => Default (Loc' a b)
   where def = Loc' def def
 
-instance Show Morph' where
-  show Morph'{..} = (_name _mFrom) ++ " ~~> " ++ (_name _mTo)
-
-instance Show a => Show (Morph'' a) where
-  show (M m)  = show m
-  show (m1 :.: m2) = show m1 ++ " . " ++ show m2
-  show (m1 :=: m2) = show m1 ++ " = " ++ show m2
+instance Show Morph where
+  show Morph{..} = _mLabel ++ " : " ++  (_name _mFrom) ++ " ~~> " ++ (_name _mTo)

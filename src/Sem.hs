@@ -61,7 +61,10 @@ j = M $ mkMph (mkObj "D") "j" (mkObj "C") & setL' (0,-2) (2,-2)
 test :: Comm
 test = sqr g f j i
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
-
+test' = do
+  t <- test
+  r <- test
+  return $ t |..| r
 -- | TODO make |..| that is the current |.| and make |.| type check the domains and codomains. Lets us an Either type for this.
 sem' :: Morph -> Diagram B
 sem' (M m) = (_node (_mFrom m) <> _node (_mTo m)) # _arrow m
