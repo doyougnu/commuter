@@ -230,11 +230,14 @@ join' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
                    let r' = liftToComp r
                    return $ (r' |.| (return lhs)) <> (return lhs |.| r')
 
-join :: Comm Comp -> Comm Comp -> Comm Comp
-join lhs rhs = do l <- lhs
-                  r <- rhs
-                  l `join'` r
+joinC :: Comm Comp -> Comm Comp -> Comm Comp
+joinC lhs rhs = do l <- lhs
+                   r <- rhs
+                   l `join'` r
 
+join'' lhs rhs = nub $ concat [ [l,r ]| l <- lhs, r <- rhs, range l == range r]
+
+joinE = liftM2 join''
 
 -- | TODO convert to lens at some point
 replace :: Eq a => (a -> Bool) -> (a -> a) -> [a] -> [a]
