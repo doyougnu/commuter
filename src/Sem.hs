@@ -53,19 +53,18 @@ _arrow Morph{..} =
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
 f :: Comm Comp
-f = mkMph (mkObj "A") "f" (mkObj "B") & setL' (0,0) (2,0)
-g = mkMph (mkObj "B") "g" (mkObj "C") & setL' (2,0) (2,-2)
-h = mkMph (mkObj "A") "h" (mkObj "C") & setL' (0,0) (2,-2)
-i = mkMph (mkObj "A'") "i" (mkObj "C") & setL' (4,0) (2,-2)
-j = mkMph (mkObj "A'") "j" (mkObj "B") & setL' (4,0) (2,0)
+f = mkMph (mkObj "A") "f" (mkObj "B") & _Right . ix 0 %~ setL' (0,0) (2,0)
+g = mkMph (mkObj "B") "g" (mkObj "C") & _Right . ix 0 %~ setL' (2,0) (2,-2)
+h = mkMph (mkObj "C") "h" (mkObj "D") & _Right . ix 0 %~ setL' (0,0) (2,-2)
+i = mkMph (mkObj "A'") "i" (mkObj "C") & _Right . ix 0 %~ setL' (4,0) (2,-2)
+j = mkMph (mkObj "A'") "j" (mkObj "B") & _Right . ix 0 %~ setL' (4,0) (2,0)
 
-test :: Comm Equ
-test = tri g f h
+t1 :: Comm Equ
+t1 = tri g f h
 
-test' = do
-  l <- test
-  r <- test
-  return $ l `join` r
+t2 = tri g j i
+
+test' = t1 `join` t2
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 -- test' = do
 --   t <- test

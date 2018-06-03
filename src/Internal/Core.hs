@@ -4,6 +4,7 @@ module Internal.Core where
 import Control.Lens
 import Control.Monad.Except (catchError)
 import Control.Monad        (liftM2, guard)
+import Data.Semigroup       ((<>))
 import Data.List            (intersect, intersectBy, nub, unionBy)
 
 import Internal.Types
@@ -145,11 +146,21 @@ liftToEqu = return . pure . pure
 
 
 -- | smart constructors. take two morphisms and force them to compose by prefering the rhs and setting the lhs domain to the rhs's range
-infixr 9 |..|
-(|..|) :: Morph -> Morph -> Comp
-fs |..| gs = [fs',gs]
+infixr 9 |...|
+(|...|) :: Morph -> Morph -> Comp
+fs |...| gs = [fs',gs]
   where gRange = _mTo gs
         fs' = setDomain' gRange fs
+
+infixr 9 |..|
+(|..|) :: Morph -> Morph -> Comm Comp
+f |..| g | fD == gR = Right [f,g]
+         | otherwise = Left $ MisMatch err
+  where gR = _mTo g
+        fD = _mFrom f
+        err = "The range of " ++ show g
+              ++ " does not match the domain of " ++ show f
+
 
 -- | Smart constructor that will type check the morphisms domain and codomain
 infixr 9 |.|
@@ -208,17 +219,18 @@ sqr f g h i = f |.| g |=| h |.| i
 
 -- [[g,f], [i,h]] [[k,j],[f,l]] ==> [[g,k,j],[g,f,l],[i,h,l]]
 
-join' :: Comp -> Comp -> Comp
-join' l  []   = l
-join' [] r    = r
-join' lhs rhs = nub . concat $ unionBy (/=) nlhs [rhs]
-  where nlhs = [ [r,l] | l <- lhs, r <- rhs, _mTo l == _mFrom r]
-                ++ [ [l,r] | l <- lhs, r <- rhs, _mTo r == _mFrom l]
+join :: Comm Comp -> Comm Comp -> Comm Comp
+join (Right lhs) (Right rhs) = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
+  where left = do l <- lhs
+                  let l' = liftToComp l
+                  return $ (l' |.| (return rhs)) <> (return rhs |.| l')
+        right = do r <- rhs
+                   let r' = liftToComp r
+                   return $ (r' |.| (return lhs)) <> (return lhs |.| r')
+join l           r           = l <> r
 
-join :: Equ -> Equ -> Equ
-join lhs rhs = do l <- lhs
-                  r <- rhs
-                  return $ join' l r
+
+-- join = liftM2 join''
 
 -- | TODO convert to lens at some point
 replace :: Eq a => (a -> Bool) -> (a -> a) -> [a] -> [a]
