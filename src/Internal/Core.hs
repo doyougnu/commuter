@@ -3,7 +3,8 @@ module Internal.Core where
 
 import Control.Lens
 import Control.Monad.Except (catchError)
-import Control.Monad        (liftM2,liftM)
+import Control.Monad        (liftM2, guard)
+import Data.List            (intersect, intersectBy, nub, unionBy)
 
 import Internal.Types
 
@@ -19,8 +20,8 @@ mkObj :: String -> Obj
 mkObj s = def & name.~ s
 
 -- | Smart constructors
-mkMph :: Obj -> String -> Obj -> Morph
-mkMph f lbl t = def
+mkMph' :: Obj -> String -> Obj -> Morph
+mkMph' f lbl t = def
                 & mFrom  .~ f
                 & mLabel .~ lbl
                 & mTo    .~ t
@@ -136,6 +137,9 @@ setRange o (m:ms) = liftM2 (:) (return m) (setRange o ms)
 liftToComp :: Morph -> Comm Comp
 liftToComp = return . pure
 
+mkMph :: Obj -> String -> Obj -> Comm Comp
+mkMph = ((liftToComp. ) .) . mkMph'
+
 liftToEqu :: Morph -> Comm Equ
 liftToEqu = return . pure . pure
 
@@ -149,11 +153,11 @@ fs |..| gs = [fs',gs]
 
 -- | Smart constructor that will type check the morphisms domain and codomain
 infixr 9 |.|
-(|.|) :: Comp -> Comp -> Comm Comp
-fs |.| gs = do rngGs <- range gs
-               dmnFs <- domain fs
+(|.|) :: Comm Comp -> Comm Comp -> Comm Comp
+fs |.| gs = do rngGs <- gs >>= range
+               dmnFs <- fs >>= domain
                if rngGs == dmnFs
-                  then return $ fs ++ gs
+                  then (++) <$> fs <*> gs
                   else Left $ MisMatch err
   where err = "The range of " ++ show gs
               ++ " does not match the domain of " ++ show fs
@@ -162,13 +166,16 @@ fs |.| gs = do rngGs <- range gs
 -- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
 -- codmain to that of the rhs
 infixr 3 |=|
-(|=|) :: Comp -> Comp -> Comm Equ
-lhs |=| rhs = do rhsDomain <- domain rhs
-                 rhsRange <- range rhs
-                 lhs' <- setDomain rhsDomain lhs
+(|=|) :: Comm Comp -> Comm Comp -> Comm Equ
+lhs |=| rhs = do rhsDomain <- rhs >>= domain
+                 rhsRange <- rhs >>= range
+                 lhs' <- lhs >>= setDomain rhsDomain
                  lhs'' <- setRange rhsRange lhs'
-                 return $ [lhs'', rhs]
+                 rhs' <- rhs
+                 return $ [lhs'', rhs']
 
+-- | This is Comm Comp for convienience it could easily just be comp -> comp ->
+-- comm Equ
 infixr 3 |==|
 (|==|) :: Comm Comp -> Comm Comp -> Comm Equ
 lhs |==| rhs = do lhsR <- lhs >>= range
@@ -190,15 +197,35 @@ lhs |==| rhs = do lhsR <- lhs >>= range
 -- of the LHS must match the domain on the RHS and the range on the RHS must
 -- match the range on the LHS
 
-tri :: Morph -> Morph -> Morph -> Comm Equ
-tri (pure -> f) (pure -> g) h = f |.| g |==| (return . pure $ h)
+tri :: Comm Comp -> Comm Comp -> Comm Comp -> Comm Equ
+tri f g h = f |.| g |==| h
 
 
-sqr :: Morph -> Morph -> Morph -> Morph -> Comm Equ
-sqr (pure -> f) (pure -> g) (pure -> h) (pure -> i) =
-  do lhs <- f |.| g
-     rhs <- h |.| i
-     lhs |=| rhs
+sqr :: Comm Comp -> Comm Comp -> Comm Comp -> Comm Comp -> Comm Equ
+sqr f g h i = f |.| g |=| h |.| i
+
+-- [[g,f], [i,h]] [[l,g],[k,j]] ==> [[k,j,f],[l,g,f],[l,i,h]]
+
+-- [[g,f], [i,h]] [[k,j],[f,l]] ==> [[g,k,j],[g,f,l],[i,h,l]]
+
+join' :: Comp -> Comp -> Comp
+join' l  []   = l
+join' [] r    = r
+join' lhs rhs = nub . concat $ unionBy (/=) nlhs [rhs]
+  where nlhs = [ [r,l] | l <- lhs, r <- rhs, _mTo l == _mFrom r]
+                ++ [ [l,r] | l <- lhs, r <- rhs, _mTo r == _mFrom l]
+
+join :: Equ -> Equ -> Equ
+join lhs rhs = do l <- lhs
+                  r <- rhs
+                  return $ join' l r
+
+-- | TODO convert to lens at some point
+replace :: Eq a => (a -> Bool) -> (a -> a) -> [a] -> [a]
+replace prd f as = do a <- as
+                      if prd a
+                        then return $ f a
+                        else return a
 
 -- -- labels :: Morph -> [String]
 -- -- labels (M a) = pure $ a ^. mLabel

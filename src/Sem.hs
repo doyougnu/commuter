@@ -45,41 +45,37 @@ _node Obj{..}
         (Loc' cx cy)= fromJust _oPos
 
 -- _arrow :: Morph' -> Diagram B
-_arrow Morph'{..} =
+_arrow Morph{..} =
   withName (_mFrom ^. name) $ \b1 ->
   withName (_mTo ^. name) $ \b2 ->
   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
-f = M $ mkMph (mkObj "A") "f" (mkObj "B") & setL' (0,0) (2,0)
-g = M $ mkMph (mkObj "B") "g" (mkObj "C") & setL' (2,0) (2,-2)
-h = M $ mkMph (mkObj "A") "h" (mkObj "C") & setL' (0,0) (2,-2)
-i = M $ mkMph (mkObj "A") "i" (mkObj "D") & setL' (0,0) (0,-2)
-j = M $ mkMph (mkObj "D") "j" (mkObj "C") & setL' (0,-2) (2,-2)
+f :: Comm Comp
+f = mkMph (mkObj "A") "f" (mkObj "B") & setL' (0,0) (2,0)
+g = mkMph (mkObj "B") "g" (mkObj "C") & setL' (2,0) (2,-2)
+h = mkMph (mkObj "A") "h" (mkObj "C") & setL' (0,0) (2,-2)
+i = mkMph (mkObj "A'") "i" (mkObj "C") & setL' (4,0) (2,-2)
+j = mkMph (mkObj "A'") "j" (mkObj "B") & setL' (4,0) (2,0)
 
-test :: Comm
-test = sqr g f j i
--- test = (m2 |.| m1) |=| (m4 |.| m3)
+test :: Comm Equ
+test = tri g f h
+
 test' = do
-  t <- test
+  l <- test
   r <- test
-  return $ t |..| r
+  return $ l `join` r
+-- test = (m2 |.| m1) |=| (m4 |.| m3)
+-- test' = do
+--   t <- test
+--   r <- test
+--   return $ t |==| r
+
 -- | TODO make |..| that is the current |.| and make |.| type check the domains and codomains. Lets us an Either type for this.
 sem' :: Morph -> Diagram B
-sem' (M m) = (_node (_mFrom m) <> _node (_mTo m)) # _arrow m
-sem' (m :.: n)   | m == n = sem' m
-sem' (xs :.: ys) | coDomain ys == domain xs = foldMap sem' [xs, ys]
-                 | otherwise = error "Domain and codomain do not match in composition!"
-sem' (lhs :=: rhs)
-  | lDomain == rDomain && lRange == rRange = foldMap sem' [lhs, rhs]
-  | otherwise = error "domain and codomain of equivalence not equivalent!"
-  where lDomain = domain lhs
-        lRange  = range lhs
-        rDomain = domain rhs
-        rRange  = range rhs
--- sem' (M lhs) :=: (M rhs)  = sem' lhs <> sem' rhs
+sem' m = (_node (_mFrom m) <> _node (_mTo m)) # _arrow m
 
-sem :: Show a => Either a Morph -> QDiagram B V2 Double Any
+sem :: Comm Equ -> QDiagram B V2 Double Any
 sem (Left err) = error . show $ err
-sem (Right ms) = sem' ms
+sem (Right ms) = foldMap (foldMap sem') ms
