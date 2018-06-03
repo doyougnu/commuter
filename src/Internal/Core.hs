@@ -219,18 +219,22 @@ sqr f g h i = f |.| g |=| h |.| i
 
 -- [[g,f], [i,h]] [[k,j],[f,l]] ==> [[g,k,j],[g,f,l],[i,h,l]]
 
-join :: Comm Comp -> Comm Comp -> Comm Comp
-join (Right lhs) (Right rhs) = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
+join' :: Comp -> Comp -> Comm Comp
+join' lhs []  = return lhs
+join' []  rhs = return rhs
+join' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
   where left = do l <- lhs
                   let l' = liftToComp l
                   return $ (l' |.| (return rhs)) <> (return rhs |.| l')
         right = do r <- rhs
                    let r' = liftToComp r
                    return $ (r' |.| (return lhs)) <> (return lhs |.| r')
-join l           r           = l <> r
 
+join :: Comm Comp -> Comm Comp -> Comm Comp
+join lhs rhs = do l <- lhs
+                  r <- rhs
+                  l `join'` r
 
--- join = liftM2 join''
 
 -- | TODO convert to lens at some point
 replace :: Eq a => (a -> Bool) -> (a -> a) -> [a] -> [a]
