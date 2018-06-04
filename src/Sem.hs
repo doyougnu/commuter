@@ -72,7 +72,6 @@ test' = t1 `joinE` t2
 --   r <- test
 --   return $ t |==| r
 
--- | TODO make |..| that is the current |.| and make |.| type check the domains and codomains. Lets us an Either type for this.
 sem' :: Morph -> Diagram B
 sem' m = (_node (_mFrom m) <> _node (_mTo m)) # _arrow m
 
