@@ -158,10 +158,10 @@ sqr f g h i = f |.| g |=| h |.| i
 
 -- [[g,f], [i,h]] [[k,j],[f,l]] ==> [[g,k,j],[g,f,l],[i,h,l]]
 
-join' :: Comp -> Comp -> Comm Comp
-join' lhs []  = return lhs
-join' []  rhs = return rhs
-join' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
+beside' :: Comp -> Comp -> Comm Comp
+beside' lhs []  = return lhs
+beside' []  rhs = return rhs
+beside' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
   where left = do l <- lhs
                   let l' = liftToComp l
                   return $ (l' |.| (return rhs)) <> (return rhs |.| l')
@@ -169,16 +169,16 @@ join' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
                    let r' = liftToComp r
                    return $ (r' |.| (return lhs)) <> (return lhs |.| r')
 
-joinC :: Comm Comp -> Comm Comp -> Comm Comp
-joinC lhs rhs = do l <- lhs
-                   r <- rhs
-                   l `join'` r
+beside :: Comm Comp -> Comm Comp -> Comm Comp
+beside lhs rhs = do l <- lhs
+                    r <- rhs
+                    l `beside'` r
 
-joinE' :: Equ -> Equ -> Equ
-joinE' lhs rhs = nub $ concat [ [l,r ]| l <- lhs, r <- rhs, range l == range r]
+besideE' :: Equ -> Equ -> Equ
+besideE' lhs rhs = nub $ concat [ [l,r ]| l <- lhs, r <- rhs, range l == range r]
 
-joinE :: Monad m => m Equ -> m Equ -> m Equ
-joinE = liftM2 joinE'
+besideE :: Monad m => m Equ -> m Equ -> m Equ
+besideE = liftM2 besideE'
 
 sortE' :: Equ -> Equ
 sortE' = sort
