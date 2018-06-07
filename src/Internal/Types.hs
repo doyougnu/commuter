@@ -1,4 +1,5 @@
-module Internal.Types ( def
+module Internal.Types ( module Data.Map
+                      , def
                       , Loc'(..)
                       , Loc
                       , Obj(..)
@@ -8,15 +9,21 @@ module Internal.Types ( def
                       , ErrMsg
                       , Comp
                       , Equ
-                      , Comm) where
+                      , Comm
+                      , PosMap
+                      , Sem) where
 
 
-import           Data.Bifoldable    (Bifoldable (..))
-import           Data.Bifunctor     (Bifunctor (..))
-import           Data.Bitraversable (Bitraversable (..))
+import           Data.Bifoldable     (Bifoldable (..))
+import           Data.Bifunctor      (Bifunctor (..))
+import           Data.Bitraversable  (Bitraversable (..))
 import           Data.Default.Class
-import           Data.Traversable   (Traversable)
-import           GHC.Generics       (Generic)
+import           Data.Traversable    (Traversable)
+import           Data.Map            (Map)
+import           Control.Monad.State (StateT)
+-- import           Control.Monad.Error.Class
+-- import           Control.Monad.State.Class
+import           GHC.Generics        (Generic)
 
 
 data Loc' a b = Loc' { _x :: a
@@ -50,14 +57,14 @@ data Obj = Obj { _name   :: String               -- ^ an Objects label
                , _fSize  :: Double               -- ^ Font size of the object label
                }
 
-data Morph = Morph { _mFrom  :: Obj                       -- ^ The object that originates the arrow
-                     , _mLabel :: String                  -- ^ the label for the arrow
-                     , _mTo    :: Obj                     -- ^ The object the arrow points to
-                     , _mPos   :: Loc                     -- ^ Position of the arrow
-                     , _types  :: [Type]                  -- ^ The type of the arrow
-                     , _mfsize :: Double                  -- ^ font size for the arrow label
-                     , _mCustomizations :: [Custom Morph] -- ^ Any customizations the user wants to apply
-                     } deriving (Generic)
+data Morph = Morph { _mFrom  ::  String                   -- ^ The object that originates the arrow
+                   , _mLabel :: String                  -- ^ the label for the arrow
+                   , _mTo    :: String                  -- ^ The object the arrow points to
+                   -- , _mPos   :: Loc                     -- ^ Position of the arrow
+                   , _types  :: [Type]                  -- ^ The type of the arrow
+                   , _mfsize :: Double                  -- ^ font size for the arrow label
+                   , _mCustomizations :: [Custom Morph] -- ^ Any customizations the user wants to apply
+                   } deriving (Generic)
 
 data Morph2 = Morph2 { _m2From  :: Morph                    -- ^ The arrow the arrow points from
                      , _m2Label :: String                   -- ^ the label for the arrow
@@ -74,6 +81,8 @@ type Comp = [Morph]
 type Equ  = [Comp]
 
 type Comm = Either ErrMsg
+type PosMap = Map String Obj
+type Sem = StateT PosMap Comm
 
 instance Eq Obj where Obj{_name=n} == Obj{_name=m} = n == m
 instance Eq Morph where
@@ -94,7 +103,7 @@ instance Default Morph where
   def = Morph { _mFrom = def
                , _mLabel = def
                , _mTo = def
-               , _mPos = def
+               -- , _mPos = def
                , _types = []
                , _mCustomizations = []
                , _mfsize = 0.22
@@ -107,4 +116,4 @@ instance Show Obj where
   show Obj{..} = show _name
 
 instance Show Morph where
-  show Morph{..} = _mLabel ++ " : " ++  (_name _mFrom) ++ " ~~> " ++ (_name _mTo)
+  show Morph{..} = _mLabel ++ " : " ++  _mFrom ++ " ~~> " ++ _mTo

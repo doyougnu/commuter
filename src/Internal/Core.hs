@@ -4,8 +4,10 @@ module Internal.Core where
 import Control.Lens
 import Control.Monad.Except (catchError)
 import Control.Monad        (liftM,liftM2)
+import Control.Monad.State  (modify)
 import Data.Semigroup       ((<>))
 import Data.List            (sort,nub)
+import Data.Map
 
 import Internal.Types
 
@@ -21,7 +23,7 @@ mkObj :: String -> Obj
 mkObj s = def & name.~ s
 
 -- | Smart constructors
-mkMph' :: Obj -> String -> Obj -> Morph
+mkMph' :: String -> String -> String -> Morph
 mkMph' f lbl t = def
                 & mFrom  .~ f
                 & mLabel .~ lbl
@@ -31,14 +33,29 @@ mkMph2 :: String -> Morph -> Morph2
 mkMph2 lbl t = def & m2Label .~ lbl
                    & m2To    .~ t
 
+-- | get the object names out of a morph
+objectNamesM :: Morph -> [String]
+objectNamesM m = [_mFrom m, _mTo m]
+
+-- | get the object names out of a composition
+objectNamesC :: Comp -> [String]
+objectNamesC = concatMap objectNamesM
+
+-- | get the object names out of an equivalence
+objectNamesE :: Equ -> [String]
+objectNamesE = concatMap objectNamesC
+
 -- | Build a Location given two doubles
 setXY :: Double -> Double -> Loc -> Loc
 setXY x_ y_ = non def %~ (x .~ x_) . (y .~ y_)
 
+toLoc :: Double -> Double -> Loc
+toLoc x_ y_ = setXY x_ y_ Nothing
+
 -- | Helper function that will mutate both the mFrom and mTo fields for a Morph
 -- given two Location setters. This occurs in a single access traversal
-overLoc_ :: (Loc -> Loc) -> (Loc -> Loc) -> Morph -> Morph
-overLoc_ f g = (mFrom . oPos %~ f) . (mTo . oPos %~ g)
+overLoc_ :: (Loc -> Loc) -> (Loc -> Loc) -> Morph -> Sem ()
+overLoc_ f g m = modify $ adjust (oPos %~ f) (_mFrom m) . adjust (oPos %~ g) (_mTo m)
 
 -- | Given an x and y coordinate, use non default to wrap the maybe location
 -- with a default value. If the Location is Nothing, use the default and
@@ -47,29 +64,29 @@ updateXY :: Double -> Double -> Loc -> Loc
 updateXY x_ y_ = non def %~ (x +~ x_) . (y +~ y_)
 
 -- | these are just lenses I don't know how to write
-domain :: Comp -> Comm Obj
+domain :: Comp -> Comm String
 domain cs = (return . _mFrom . last $ cs) `catchError` handler
   where handler _ = Left . NoObj $ "Could not find domain on: " ++ show cs
 
-coDomain :: Comp -> Comm Obj
+coDomain :: Comp -> Comm String
 coDomain cs = (return . _mTo . head $ cs) `catchError` handler
   where handler _ = Left . NoObj $ "Could not find range/coDomain on: " ++ show cs
 
-range :: Comp -> Comm Obj
+range :: Comp -> Comm String
 range = coDomain
 
-setDomain' :: Obj -> Morph -> Morph
+setDomain' :: String -> Morph -> Morph
 setDomain' = set mFrom
 
-setRange' :: Obj -> Morph -> Morph
+setRange' :: String -> Morph -> Morph
 setRange' = set mTo
 
-setDomain :: Obj -> Comp -> Comm Comp
+setDomain :: String -> Comp -> Comm Comp
 setDomain _ [] = Left . NoObj $ "Cannot set domain on empty composition"
 setDomain o (e:[]) = return $ setDomain' o e : []
 setDomain o (m:ms) = liftM2 (:) (return m) (setDomain o ms)
 
-setRange :: Obj -> Comp -> Comm Comp
+setRange :: String -> Comp -> Comm Comp
 setRange _ [] = Left . NoObj $ "Cannot set range on empty composition"
 setRange o (e:[]) = return $ setRange' o e : []
 setRange o (m:ms) = liftM2 (:) (return m) (setRange o ms)
@@ -77,7 +94,7 @@ setRange o (m:ms) = liftM2 (:) (return m) (setRange o ms)
 liftToComp :: Morph -> Comm Comp
 liftToComp = return . pure
 
-mkMph :: Obj -> String -> Obj -> Comm Comp
+mkMph :: String -> String -> String -> Comm Comp
 mkMph = ((liftToComp. ) .) . mkMph'
 
 liftToEqu :: Morph -> Comm Equ
@@ -178,22 +195,25 @@ sortE' = sort
 sortE :: Monad m => m Equ -> m Equ
 sortE = liftM sort
 
+emptySt :: PosMap
+emptySt = empty
+
 debugO' :: Obj -> String
-debugO' Obj{..} = _name ++ ": \n  " ++ show _oPos ++ spacer ++
-                 spacer ++ show _frozen ++ spacer ++ show _fSize
+debugO' Obj{..} = spacer ++ _name ++ ": \n  " ++ spacer ++ show _frozen
+                  ++ spacer ++ show _fSize ++ spacer
   where spacer = "  \n  "
 
 debugM' :: Morph -> String
-debugM' Morph{..} = _mLabel ++ ": \n  " ++ debugO' _mFrom  ++ spacer
-                   ++ debugO' _mTo  ++ spacer ++ show _mPos ++ spacer
-                   ++ show _types ++ spacer ++ show _mfsize
+debugM' Morph{..} = spacer ++ _mLabel ++ ": \n  " ++ _mFrom  ++ spacer
+                    ++ _mTo  ++ spacer ++ show _types ++ spacer ++ show _mfsize
+                    ++ spacer
   where spacer = " \n  "
 
 debugC' :: Comp -> String
-debugC' = foldr (++) "" . fmap debugM'
+debugC' = Prelude.foldr (++) "" . fmap debugM'
 
 debugE' :: Equ -> String
-debugE' = foldr (++) "" . fmap debugC'
+debugE' = Prelude.foldr (++) "" . fmap debugC'
 
 debugO :: Comm Obj -> String
 debugO (Right a) = debugO' a

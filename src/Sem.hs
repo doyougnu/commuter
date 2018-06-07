@@ -5,6 +5,9 @@ import Diagrams.Prelude hiding ((<>), tri, under)
 
 import Data.Monoid                    ((<>))
 import Data.Maybe                     (fromJust, isNothing)
+import Data.List                      (intersect)
+import Data.Map                       ((!))
+import Control.Monad.State            (lift, runStateT)
 
 import Internal.Types
 import Internal.Core
@@ -51,20 +54,21 @@ _node a@Obj{..} = __node b
 
 -- _arrow :: Morph' -> Diagram B
 _arrow Morph{..} =
-  withName (_mFrom ^. name) $ \b1 ->
-  withName (_mTo ^. name) $ \b2 ->
+  withName (_mFrom) $ \b1 ->
+  withName (_mTo) $ \b2 ->
   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
-f' = mkMph (mkObj "A") "f" (mkObj "B") & setL (0,0) (2,0)
-g' = mkMph (mkObj "B") "g" (mkObj "C") & setL (2,0) (2,-2)
-f :: Comm Comp
-f = mkMph (mkObj "A") "f" (mkObj "B") & setL (0,0) (2,0)
-g = mkMph (mkObj "B") "g" (mkObj "C") & setL (2,0) (2,-2)
-h = mkMph (mkObj "A") "h" (mkObj "C") & setL (0,0) (2,-2)
-i = mkMph (mkObj "A'") "i" (mkObj "C") & setL (4,0) (2,-2)
-j = mkMph (mkObj "A'") "j" (mkObj "B") & setL (4,0) (2,0)
+f' = mkMph "A" "f" ("B")
+g' = mkMph "B" "g" "C"
+
+f :: Sem Comp
+f = lift $ mkMph ("A") "f" ("B")
+g = lift $ mkMph ("B") "g" ("C")
+h = lift $ mkMph ("A") "h" ("C")
+i = lift $ mkMph ("A'") "i" ("C")
+j = lift $ mkMph ("A'") "j" ("B")
 
 t1 :: Comm Equ
 t1 = tri g f h
@@ -72,7 +76,7 @@ t1 = tri g f h
 t2 :: Comm Equ
 t2 = tri g j i
 
-test' = t1 `mergeE` t2
+test' = t1 `underE` t2
 
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 -- test' = do
@@ -80,9 +84,20 @@ test' = t1 `mergeE` t2
 --   r <- test
 --   return $ t |==| r
 
-sem' :: Morph -> Diagram B
-sem' m = (_node (_mFrom m) <> _node (_mTo m)) # _arrow m
+sem' :: Morph -> PosMap -> Diagram B
+sem' m objs = (_node fromObj <> _node toObj) # _arrow m
+  where from_ = _mFrom m
+        to_   = _mTo m
+        fromObj = objs ! from_
+        toObj   = objs ! to_
 
-sem :: Comm Equ -> QDiagram B V2 Double Any
+-- sem :: Sem Equ -> QDiagram B V2 Double Any
+-- sem (Left err) = error . show $ err
+-- sem (Right ms) = foldMap (foldMap sem') ms
+
+sem'' :: Sem Equ -> Comm (Equ, PosMap)
+sem'' es = runStateT es emptySt
+
+sem :: Comm (Equ, PosMap) -> QDiagram B V2 Double Any
 sem (Left err) = error . show $ err
-sem (Right ms) = foldMap (foldMap sem') ms
+sem (Right (ms, objs)) = foldMap (foldMap $ flip sem' objs) ms
