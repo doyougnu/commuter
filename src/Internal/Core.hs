@@ -95,11 +95,10 @@ infixr 9 |..|
 (|..|) :: Morph -> Morph -> Comm Comp
 f |..| g | fD == gR = Right [f,g]
          | otherwise = Left $ MisMatch err
-  where gR = _mTo g
+  where gR = mTo g
         fD = _mFrom f
         err = "The range of " ++ show g
               ++ " does not match the domain of " ++ show f
-
 
 -- | Smart constructor that will type check the morphisms domain and codomain
 infixr 9 |.|
@@ -139,18 +138,11 @@ lhs |==| rhs = do lhsR <- lhs >>= range
     err = "The range or domain of " ++ show lhs
       ++ " does not match the range or domain of " ++ show rhs
 
--- | given two pairs of coordinates set both to the morph
-
--- | TODO repeat the trans mutations but for setting instead of updating. Then
--- define the composition operation to ensure that the lcoation of the domains
--- and codomains mathc. Then do the same with equivalence. that is on the domain
--- of the LHS must match the domain on the RHS and the range on the RHS must
--- match the range on the LHS
-
+-- | A triangle shape
 tri :: Comm Comp -> Comm Comp -> Comm Comp -> Comm Equ
 tri f g h = f |.| g |==| h
 
-
+-- | a square shape
 sqr :: Comm Comp -> Comm Comp -> Comm Comp -> Comm Comp -> Comm Equ
 sqr f g h i = f |.| g |=| h |.| i
 
