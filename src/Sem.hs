@@ -1,13 +1,14 @@
 module Sem where
 
 import Diagrams.Backend.PGF.CmdLine
-import Diagrams.Prelude hiding ((<>), tri)
+import Diagrams.Prelude hiding ((<>), tri, under)
 
 import Data.Monoid                    ((<>))
 import Data.Maybe                     (fromJust, isNothing)
 
 import Internal.Types
 import Internal.Core
+import Internal.Position
 
 -- | The semantic function for Graphviz has the semantic domain of strings
 -- type SemGraphViz n m l = Graph n m l -> String
@@ -35,14 +36,18 @@ arrLoc (location -> _p1) (location -> _p2) = _p1 .+^ vec
     vec = (_p2 .-. _p1) ^/ 2
 
 
-_node :: Obj -> Diagram B
-_node Obj{..}
+__node :: Obj -> Diagram B
+__node Obj{..}
   | isNothing _oPos = def'
   | otherwise = def' # moveTo (p2 (cx,cy))
   where def' = text _name # fontSizeL _fSize
                <> phantom (square 0.25 :: Diagram B)
                # named _name
         (Loc' cx cy)= fromJust _oPos
+
+_node :: Obj -> Diagram B
+_node a@Obj{..} = __node b
+  where b = foldr ($) a _customizations
 
 -- _arrow :: Morph' -> Diagram B
 _arrow Morph{..} =
@@ -52,16 +57,14 @@ _arrow Morph{..} =
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
-f' = mkMph' (mkObj "A") "f" (mkObj "B") & setL' (0,0) (2,0)
-g' = mkMph' (mkObj "B") "g" (mkObj "C") & setL' (2,0) (2,-2)
+f' = mkMph (mkObj "A") "f" (mkObj "B") & setL (0,0) (2,0)
+g' = mkMph (mkObj "B") "g" (mkObj "C") & setL (2,0) (2,-2)
 f :: Comm Comp
-f = mkMph (mkObj "A") "f" (mkObj "B") & _Right . ix 0 %~ setL' (0,0) (2,0)
-g = mkMph (mkObj "B") "g" (mkObj "C") & _Right . ix 0 %~ setL' (2,0) (2,-2)
-h = mkMph (mkObj "A") "h" (mkObj "C") & _Right . ix 0 %~ setL' (0,0) (2,-2)
-i = mkMph (mkObj "A'") "i" (mkObj "C") & _Right . ix 0 %~ setL' (4,0) (2,-2)
-j = mkMph (mkObj "A'") "j" (mkObj "B") & _Right . ix 0 %~ setL' (4,0) (2,0)
-
-cs = (,) <$> [0,2..] <*> [0,2..]
+f = mkMph (mkObj "A") "f" (mkObj "B") & setL (0,0) (2,0)
+g = mkMph (mkObj "B") "g" (mkObj "C") & setL (2,0) (2,-2)
+h = mkMph (mkObj "A") "h" (mkObj "C") & setL (0,0) (2,-2)
+i = mkMph (mkObj "A'") "i" (mkObj "C") & setL (4,0) (2,-2)
+j = mkMph (mkObj "A'") "j" (mkObj "B") & setL (4,0) (2,0)
 
 t1 :: Comm Equ
 t1 = tri g f h
@@ -69,7 +72,8 @@ t1 = tri g f h
 t2 :: Comm Equ
 t2 = tri g j i
 
-test' = t1 `joinE` t2
+test' = t1 `under` t2
+
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 -- test' = do
 --   t <- test

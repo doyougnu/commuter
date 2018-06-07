@@ -5,7 +5,7 @@ import Control.Lens
 import Control.Monad.Except (catchError)
 import Control.Monad        (liftM,liftM2)
 import Data.Semigroup       ((<>))
-import Data.List            (nub, sort)
+import Data.List            (sort,nub)
 
 import Internal.Types
 
@@ -95,7 +95,7 @@ infixr 9 |..|
 (|..|) :: Morph -> Morph -> Comm Comp
 f |..| g | fD == gR = Right [f,g]
          | otherwise = Left $ MisMatch err
-  where gR = mTo g
+  where gR = _mTo g
         fD = _mFrom f
         err = "The range of " ++ show g
               ++ " does not match the domain of " ++ show f
@@ -150,10 +150,10 @@ sqr f g h i = f |.| g |=| h |.| i
 
 -- [[g,f], [i,h]] [[k,j],[f,l]] ==> [[g,k,j],[g,f,l],[i,h,l]]
 
-beside' :: Comp -> Comp -> Comm Comp
-beside' lhs []  = return lhs
-beside' []  rhs = return rhs
-beside' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
+merge' :: Comp -> Comp -> Comm Comp
+merge' lhs []  = return lhs
+merge' []  rhs = return rhs
+merge' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
   where left = do l <- lhs
                   let l' = liftToComp l
                   return $ (l' |.| (return rhs)) <> (return rhs |.| l')
@@ -161,16 +161,16 @@ beside' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
                    let r' = liftToComp r
                    return $ (r' |.| (return lhs)) <> (return lhs |.| r')
 
-beside :: Comm Comp -> Comm Comp -> Comm Comp
-beside lhs rhs = do l <- lhs
-                    r <- rhs
-                    l `beside'` r
+merge :: Comm Comp -> Comm Comp -> Comm Comp
+merge lhs rhs = do l <- lhs
+                   r <- rhs
+                   l `merge'` r
 
-besideE' :: Equ -> Equ -> Equ
-besideE' lhs rhs = nub $ concat [ [l,r ]| l <- lhs, r <- rhs, range l == range r]
+mergeE' :: Equ -> Equ -> Equ
+mergeE' lhs rhs = nub $ concat [ [l,r ]| l <- lhs, r <- rhs, range l == range r]
 
-besideE :: Monad m => m Equ -> m Equ -> m Equ
-besideE = liftM2 besideE'
+mergeE :: Monad m => m Equ -> m Equ -> m Equ
+mergeE = liftM2 mergeE'
 
 sortE' :: Equ -> Equ
 sortE' = sort

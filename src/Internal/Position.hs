@@ -1,7 +1,6 @@
-module Position where
+module Internal.Position where
 
-import Control.Monad        (liftM)
-import Control.Lens
+import Control.Lens hiding  (under)
 
 import Internal.Types
 import Internal.Core
@@ -68,9 +67,31 @@ setML' :: Loc -> Loc -> Morph -> Morph
 setML' floc tloc = overLoc_ (const floc) (const tloc)
 
 -- | set the location in the context of the comm monad
-setL :: (Double,Double) -> (Double,Double) -> Comm Morph -> Comm Morph
-setL = (liftM .) . setML
+setL :: (Double,Double) -> (Double,Double) -> Comm Comp -> Comm Comp
+setL froms = fmap . fmap . setML froms
 
+-- | Set the position for a composed morphism
 setPos :: [((Double, Double), (Double, Double))] -> Comm Comp -> Comm Comp
 setPos cs (Right xs) = Right $ zipWith (uncurry setML) cs xs
 setPos _  a@(Left _) = a
+
+under' :: Comp -> Comp -> Comm Comp
+under' low high = low' `merge'` high
+  where low' = fmap (overLoc_  negY negY) low
+        negY = non def . y %~ negate
+
+under :: Comm Comp -> Comm Comp -> Comm Comp
+under low high = low' `merge` high
+  where low' = low >>= return . fmap (overLoc_  negY negY)
+        negY = non def . y %~ negate
+
+onTop :: Comm Comp -> Comm Comp -> Comm Comp
+onTop = flip under
+
+underE :: Comm Equ -> Comm Equ -> Comm Equ
+underE ls rs = do l <- ls
+                  r <- rs
+                  sequence $ l `under''` r
+  where under'' as bs = do a <- as
+                           b <- bs
+                           return $ a `under'` b
