@@ -153,7 +153,7 @@ sqr f g h i = f |.| g |=| h |.| i
 merge' :: Comp -> Comp -> Comm Comp
 merge' lhs []  = return lhs
 merge' []  rhs = return rhs
-merge' lhs rhs = foldr ((<>)) (Left $ MisMatch "") $ left ++ right
+merge' lhs rhs = foldr1 ((<>)) $ left ++ right
   where left = do l <- lhs
                   let l' = liftToComp l
                   return $ (l' |.| (return rhs)) <> (return rhs |.| l')
@@ -167,7 +167,7 @@ merge lhs rhs = do l <- lhs
                    l `merge'` r
 
 mergeE' :: Equ -> Equ -> Equ
-mergeE' lhs rhs = nub $ concat [ [l,r ]| l <- lhs, r <- rhs, range l == range r]
+mergeE' lhs rhs = nub $ concat [ [l,r ] | l <- lhs, r <- rhs, range l == range r]
 
 mergeE :: Monad m => m Equ -> m Equ -> m Equ
 mergeE = liftM2 mergeE'
@@ -177,3 +177,36 @@ sortE' = sort
 
 sortE :: Monad m => m Equ -> m Equ
 sortE = liftM sort
+
+debugO' :: Obj -> String
+debugO' Obj{..} = _name ++ ": \n  " ++ show _oPos ++ spacer ++
+                 spacer ++ show _frozen ++ spacer ++ show _fSize
+  where spacer = "  \n  "
+
+debugM' :: Morph -> String
+debugM' Morph{..} = _mLabel ++ ": \n  " ++ debugO' _mFrom  ++ spacer
+                   ++ debugO' _mTo  ++ spacer ++ show _mPos ++ spacer
+                   ++ show _types ++ spacer ++ show _mfsize
+  where spacer = " \n  "
+
+debugC' :: Comp -> String
+debugC' = foldr (++) "" . fmap debugM'
+
+debugE' :: Equ -> String
+debugE' = foldr (++) "" . fmap debugC'
+
+debugO :: Comm Obj -> String
+debugO (Right a) = debugO' a
+debugO (Left err) = show err
+
+debugM :: Comm Morph -> String
+debugM (Right a) = debugM' a
+debugM (Left err) = show err
+
+debugC :: Comm Comp -> String
+debugC (Right a) = debugC' a
+debugC (Left err) = show err
+
+debugE :: Comm Equ -> String
+debugE (Right a) = debugE' a
+debugE (Left err) = show err

@@ -1,6 +1,7 @@
 module Internal.Position where
 
 import Control.Lens hiding  (under)
+import Control.Monad        (liftM2)
 
 import Internal.Types
 import Internal.Core
@@ -88,10 +89,10 @@ under low high = low' `merge` high
 onTop :: Comm Comp -> Comm Comp -> Comm Comp
 onTop = flip under
 
+underE' :: Equ -> Equ -> Equ
+underE' lows highs = lows' `mergeE'` highs
+  where lows' = fmap (fmap (overLoc_ negY negY)) lows
+        negY  = non def . y %~ negate
+
 underE :: Comm Equ -> Comm Equ -> Comm Equ
-underE ls rs = do l <- ls
-                  r <- rs
-                  sequence $ l `under''` r
-  where under'' as bs = do a <- as
-                           b <- bs
-                           return $ a `under'` b
+underE = liftM2 underE'

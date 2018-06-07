@@ -72,7 +72,7 @@ t1 = tri g f h
 t2 :: Comm Equ
 t2 = tri g j i
 
-test' = t1 `under` t2
+test' = t1 `mergeE` t2
 
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 -- test' = do
