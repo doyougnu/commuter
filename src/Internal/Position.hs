@@ -92,20 +92,10 @@ underBy d low high = lift $ low >>= return . mapM_ (transY d) >> low `merge` hig
 under :: Comm Comp -> Comm Comp -> Sem Comp
 under = underBy 0
 
--- onTop :: Comm Comp -> Comm Comp -> Comm Comp
--- onTop = flip under
+onTop :: Comm Comp -> Comm Comp -> Sem Comp
+onTop = flip under
 
--- underEBy' :: Double -> Equ -> Equ -> Equ
--- underEBy' d lows highs = lows' `mergeE'` highs
---   where lows' = fmap (fmap helper) lows
---         negY  = non def . y %~ negate
-
---         helper m
---           | m `elem` sharedObjs = m & overLoc_ negY negY
---           | otherwise = m
---         sharedObjs = do l <- lows
---                         r <- highs
---                         l `intersect` r
-
--- -- underE :: Comm Equ -> Comm Equ -> Comm Equ
--- -- underE = liftM2 underE'
+underEBy' :: Double -> Comm Equ -> Comm Equ -> Sem Equ
+underEBy' d lows highs = do ls <- lift lows
+                            sequence_ $ mapM_ (transY d) <$> ls
+                            lift $ lows `mergeE` highs
