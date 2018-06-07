@@ -52,12 +52,16 @@ _arrow Morph{..} =
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
+f' = mkMph' (mkObj "A") "f" (mkObj "B") & setL' (0,0) (2,0)
+g' = mkMph' (mkObj "B") "g" (mkObj "C") & setL' (2,0) (2,-2)
 f :: Comm Comp
 f = mkMph (mkObj "A") "f" (mkObj "B") & _Right . ix 0 %~ setL' (0,0) (2,0)
 g = mkMph (mkObj "B") "g" (mkObj "C") & _Right . ix 0 %~ setL' (2,0) (2,-2)
 h = mkMph (mkObj "A") "h" (mkObj "C") & _Right . ix 0 %~ setL' (0,0) (2,-2)
 i = mkMph (mkObj "A'") "i" (mkObj "C") & _Right . ix 0 %~ setL' (4,0) (2,-2)
 j = mkMph (mkObj "A'") "j" (mkObj "B") & _Right . ix 0 %~ setL' (4,0) (2,0)
+
+cs = (,) <$> [0,2..] <*> [0,2..]
 
 t1 :: Comm Equ
 t1 = tri g f h

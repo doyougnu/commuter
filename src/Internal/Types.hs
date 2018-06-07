@@ -18,6 +18,7 @@ import           Data.Default.Class
 import           Data.Traversable   (Traversable)
 import           GHC.Generics       (Generic)
 
+
 data Loc' a b = Loc' { _x :: a
                      , _y :: b
                      } deriving (Eq,Functor,Foldable,Traversable,Show)
@@ -80,10 +81,7 @@ instance Eq Morph where
     = lf == rf && lt == rt && ll == rl
 
 instance Ord Obj where compare Obj{_name=n} Obj{_name=m} = compare n m
-instance Ord Morph where
-  compare m1 m2 = compare
-                  (compare (_mFrom m1) (_mFrom m2))
-                  (compare (_mTo m1) (_mTo m2))
+instance Ord Morph where compare m1 m2 = compare (_mFrom m1) (_mFrom m2)
 
 instance Default Obj where
   def = Obj {_name=def

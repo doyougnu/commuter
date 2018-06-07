@@ -3,9 +3,9 @@ module Internal.Core where
 
 import Control.Lens
 import Control.Monad.Except (catchError)
-import Control.Monad        (liftM2, guard)
+import Control.Monad        (liftM,liftM2)
 import Data.Semigroup       ((<>))
-import Data.List            (intersect, intersectBy, nub, unionBy)
+import Data.List            (nub, sort)
 
 import Internal.Types
 
@@ -47,12 +47,12 @@ transL x_ y_ m = m & transYL y_ . transXL x_
 -- | Given an x and y coordinate, use non default to wrap the maybe location
 -- with a default value. If the Location is Nothing, use the default and
 -- translate the x and y fields according to the input coords.
-updateXY' :: Double -> Double -> Loc -> Loc
-updateXY' x_ y_ = non def %~ (x +~ x_) . (y +~ y_)
+updateXY :: Double -> Double -> Loc -> Loc
+updateXY x_ y_ = non def %~ (x +~ x_) . (y +~ y_)
 
 -- | Build a Location given two doubles
-setXY' :: Double -> Double -> Loc -> Loc
-setXY' x_ y_ = non def %~ (x .~ x_) . (y .~ y_)
+setXY :: Double -> Double -> Loc -> Loc
+setXY x_ y_ = non def %~ (x .~ x_) . (y .~ y_)
 
 -- | Helper function that will mutate both the mFrom and mTo fields for a Morph
 -- given two Location setters. This occurs in a single access traversal
@@ -60,52 +60,56 @@ overLoc_ :: (Loc -> Loc) -> (Loc -> Loc) -> Morph -> Morph
 overLoc_ f g = (mFrom . oPos %~ f) . (mTo . oPos %~ g)
 
 -- | Just mutate the from field for the morph
-transFrom' :: Double -> Double -> Morph -> Morph
-transFrom' = (flip overLoc_ id .) . updateXY'
+transFrom :: Double -> Double -> Morph -> Morph
+transFrom = (flip overLoc_ id .) . updateXY
 
 -- | Just mutate the from field for the morph
-transFrom :: (Loc -> Loc) -> Morph -> Morph
-transFrom = over $ mFrom . oPos
+transFrom' :: (Loc -> Loc) -> Morph -> Morph
+transFrom' = over $ mFrom . oPos
 
 -- | Just mutate the to field for the morph given two doubles
-transTo' :: Double -> Double -> Morph -> Morph
-transTo' = (overLoc_ id .) . updateXY'
+transTo :: Double -> Double -> Morph -> Morph
+transTo = (overLoc_ id .) . updateXY
 
 -- | Directly mutate the location of a morph given a unary function
-transTo :: (Loc -> Loc) -> Morph -> Morph
-transTo =  over $ mTo . oPos
+transTo' :: (Loc -> Loc) -> Morph -> Morph
+transTo' =  over $ mTo . oPos
 
 -- | given two pairs of coordinates apply both to the morph
-trans' :: (Double, Double) -> (Double, Double) -> Morph -> Morph
-trans' fcs tcs = overLoc_ (uncurry updateXY' fcs) (uncurry updateXY' tcs)
+trans :: (Double, Double) -> (Double, Double) -> Morph -> Morph
+trans fcs tcs = overLoc_ (uncurry updateXY fcs) (uncurry updateXY tcs)
 
 -- | the unticked version of trans' is overLoc_
-trans :: (Loc -> Loc) -> (Loc -> Loc) -> Morph -> Morph
-trans = overLoc_
+trans' :: (Loc -> Loc) -> (Loc -> Loc) -> Morph -> Morph
+trans' = overLoc_
 
 -- | set the from field for the morph given two doubles
-setFrom' :: Double -> Double -> Morph -> Morph
-setFrom' = (flip overLoc_ id .) . setXY'
+setFrom :: Double -> Double -> Morph -> Morph
+setFrom = (flip overLoc_ id .) . setXY
 
 -- | Given a location set the morph's location to the one provided
-setFrom :: Loc -> Morph -> Morph
-setFrom = set $ mFrom . oPos
+setFrom' :: Loc -> Morph -> Morph
+setFrom' = set $ mFrom . oPos
 
 -- | set the To field for the morph
-setTo' :: Double -> Double -> Morph -> Morph
-setTo' = (overLoc_ id .) . setXY'
+setTo :: Double -> Double -> Morph -> Morph
+setTo = (overLoc_ id .) . setXY
 
 -- | set the To field for the morph
-setTo :: Loc -> Morph -> Morph
-setTo = set $ mTo . oPos
+setTo' :: Loc -> Morph -> Morph
+setTo' = set $ mTo . oPos
 
 -- | helper function to set the position instead of applying a transformation
-setL' :: (Double,Double) -> (Double,Double) -> Morph -> Morph
-setL' fcs tcs = overLoc_ (uncurry setXY' fcs) (uncurry setXY' tcs)
+setML' :: (Double,Double) -> (Double,Double) -> Morph -> Morph
+setML' fcs tcs = overLoc_ (uncurry setXY fcs) (uncurry setXY tcs)
 
 -- | Set both locations in a Morph given two locations
-setL :: Loc -> Loc -> Morph -> Morph
-setL floc tloc = overLoc_ (const floc) (const tloc)
+setML :: Loc -> Loc -> Morph -> Morph
+setML floc tloc = overLoc_ (const floc) (const tloc)
+
+-- | set the location in the context of the comm monad
+setL :: (Double,Double) -> (Double,Double) -> Comm Morph -> Comm Morph
+setL = (liftM .) . setML'
 
 -- | these are just lenses I don't know how to write
 domain :: Comp -> Comm Obj
@@ -235,35 +239,14 @@ joinC lhs rhs = do l <- lhs
                    r <- rhs
                    l `join'` r
 
-join'' lhs rhs = nub $ concat [ [l,r ]| l <- lhs, r <- rhs, range l == range r]
+joinE' :: Equ -> Equ -> Equ
+joinE' lhs rhs = nub $ concat [ [l,r ]| l <- lhs, r <- rhs, range l == range r]
 
-joinE = liftM2 join''
+joinE :: Monad m => m Equ -> m Equ -> m Equ
+joinE = liftM2 joinE'
 
--- | TODO convert to lens at some point
-replace :: Eq a => (a -> Bool) -> (a -> a) -> [a] -> [a]
-replace prd f as = do a <- as
-                      if prd a
-                        then return $ f a
-                        else return a
+sortE' :: Equ -> Equ
+sortE' = sort
 
--- -- labels :: Morph -> [String]
--- -- labels (M a) = pure $ a ^. mLabel
--- -- labels (ns :.: ms) = labels ns ++ labels ms
--- -- labels (ns :=: ms) = labels ns ++ labels ms
-
--- -- elem' :: Morph -> String -> Bool
--- -- elem' (M a) str = str == a ^. mLabel
--- -- elem' (ns :.: ms) str = elem' ns str && elem' ms str
--- -- elem' (ns :=: ms) str = elem' ns str && elem' ms str
-
-
--- -- -- lhsBy :: Morph -> (Morph -> Bool) -> Maybe Morph
--- -- -- lhsBy a@(M x) f acc
--- -- --   | f a == True = Just acc
--- -- --   | otherwise = Nothing
--- -- -- lhsBy (ms :.: ns) f acc =
--- -- -- lhsBy (ms :=: ns) f
-
--- -- -- join :: Morph -> Morph -> Morph
--- -- -- join m1 m2 = go l
--- -- --   where (l:ls) = L.intersect (labels m1) (labels m2)
+sortE :: Monad m => m Equ -> m Equ
+sortE = liftM sort
