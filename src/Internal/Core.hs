@@ -33,8 +33,11 @@ mkMph2 :: String -> Morph -> Morph2
 mkMph2 lbl t = def & m2Label .~ lbl
                    & m2To    .~ t
 
-mkMph :: String -> String -> String -> Sem Comp
-mkMph = ((liftToComp. ) .) . mkMph'
+mkMph :: String -> String -> String -> Sem Morph
+mkMph frm lbl to = do let m = mkMph' frm lbl to
+                      insertObj $ mkObj frm
+                      insertObj $ mkObj to
+                      return m
 
 -- | get the object names out of a morph
 objectNamesM :: Morph -> [String]
@@ -47,6 +50,10 @@ objectNamesC = concatMap objectNamesM
 -- | get the object names out of an equivalence
 objectNamesE :: Equ -> [String]
 objectNamesE = concatMap objectNamesC
+
+-- | Insert an object into the state
+insertObj :: Obj -> Sem ()
+insertObj o = modify $ insert (_name o) o
 
 -- | Build a Location given two doubles
 setXY :: Double -> Double -> Loc -> Loc

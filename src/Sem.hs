@@ -60,30 +60,44 @@ _arrow Morph{..} =
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
-f' :: Sem Comp
+f' :: Sem Morph
 f' = mkMph "A" "f" ("B")
-g' :: Sem Comp
+
+g' :: Sem Morph
 g' = mkMph "B" "g" "C"
 
-f :: Sem Comp
-f = mkMph ("A") "f" ("B")
-g :: Sem Comp
-g = mkMph ("B") "g" ("C")
-h :: Sem Comp
-h = mkMph ("A") "h" ("C")
-i :: Sem Comp
+f :: Sem Morph
+f = do m <- mkMph "A" "f" "B"
+       setML (0,0) (2,0) m
+       return m
+
+g :: Sem Morph
+g = do m <- mkMph "B" "g" "C"
+       setML (2,0) (2,-2) m
+       return m
+
+h :: Sem Morph
+h = do m <- mkMph "A" "h" "C"
+       setML (0,0) (2,-4) m
+       return m
+
+i :: Sem Morph
 i = mkMph ("A'") "i" ("C")
-j :: Sem Comp
+
+j :: Sem Morph
 j = mkMph ("A'") "j" ("B")
 
 t1 :: Sem Equ
-t1 = tri g f h
+t1 = tri (g >>= liftToComp) (f >>= liftToComp) (h >>= liftToComp)
 
 t2 :: Sem Equ
-t2 = tri g j i
+t2 = tri (g >>= liftToComp) (j >>= liftToComp) (i >>= liftToComp)
+
+-- test' :: Sem Equ
+-- test' = t1 `underE` t2
 
 test' :: Sem Equ
-test' = t1 `underE` t2
+test' = t1
 
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 -- test' = do
@@ -102,9 +116,9 @@ sem' m objs = (_node fromObj <> _node toObj) # _arrow m
 -- sem (Left err) = error . show $ err
 -- sem (Right ms) = foldMap (foldMap sem') ms
 
-sem'' :: Sem Equ -> (Either ErrMsg Equ, PosMap)
-sem'' = flip runState emptySt . runExceptT
+sem :: Sem Equ -> QDiagram B V2 Double Any
+sem = sem'' . flip runState emptySt . runExceptT
 
-sem :: (Either ErrMsg Equ, PosMap) -> QDiagram B V2 Double Any
-sem (Left err, _) = error . show $ err
-sem (Right ms, objs) = foldMap (foldMap $ flip sem' objs) ms
+sem'' :: (Either ErrMsg Equ, PosMap) -> QDiagram B V2 Double Any
+sem'' (Left err, _) = error . show $ err
+sem'' (Right ms, objs) = foldMap (foldMap $ flip sem' objs) ms

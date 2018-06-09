@@ -10,18 +10,11 @@ module Main where
 --   But I think some │ │ | major redesign might have to happen first. Arrows
 --   are complicated.
 
-import Data.Map (empty)
 import Diagrams.Prelude hiding (from, to, E)
 import Diagrams.Backend.PGF.CmdLine
-import Graphics.SVGFonts
-
-import Data.Typeable (Typeable)
-import Data.Maybe (isJust)
 import Data.Text(Text)
 
 import Sem
-import Internal.Types
-import Internal.Core
 
 
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
