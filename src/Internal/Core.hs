@@ -2,10 +2,10 @@
 module Internal.Core where
 
 import Control.Lens
-import Control.Monad.Except (throwError, runExcept, catchError)
+import Control.Monad.Except (throwError, runExceptT, catchError)
 import Control.Monad        (liftM, liftM2)
-import Control.Monad.State  (modify,lift)
-import Data.Semigroup       ((<>))
+import Control.Monad.State  (evalState, modify)
+import Control.Applicative  ((<|>))
 import Data.List            (sort,nub)
 import Data.Map
 
@@ -151,10 +151,13 @@ lhs |==| rhs = do lhsR <- lhs >>= range
                   rhsD <- rhs >>= domain
                   if lhsR == rhsR && lhsD == rhsD
                      then sequence $ [lhs,rhs]
-                     else throwError $ MisMatch err
+                     else handler
   where
-    err = "The range or domain of " ++ show lhs
-      ++ " does not match the range or domain of " ++ show rhs
+    handler = do l <- lhs
+                 r <- rhs
+                 let err = "The range or domain of " ++ show l ++
+                       " does not match the range or domain of " ++ show r
+                 throwError $ MisMatch err
 
 -- | A triangle shape
 tri' :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
@@ -184,13 +187,13 @@ sqr f g h i = do f' <- f
 merge' :: Comp -> Comp -> Sem Comp
 merge' lhs []  = return lhs
 merge' []  rhs = return rhs
-merge' lhs rhs = foldr1 ((<>)) $ left ++ right
+merge' lhs rhs = foldr1 ((<|>)) $ left ++ right
   where left = do l <- lhs
                   let l' = liftToComp l
-                  return $ (l' |.| (return rhs)) <> (return rhs |.| l')
+                  return $ (l' |.| (return rhs)) <|> (return rhs |.| l')
         right = do r <- rhs
                    let r' = liftToComp r
-                   return $ (r' |.| (return lhs)) <> (return lhs |.| r')
+                   return $ (r' |.| (return lhs)) <|> (return lhs |.| r')
 
 merge :: Sem Comp -> Sem Comp -> Sem Comp
 merge lhs rhs = do l <- lhs
@@ -198,10 +201,11 @@ merge lhs rhs = do l <- lhs
                    l `merge'` r
 
 mergeE' :: Equ -> Equ -> Equ
-mergeE' lhs rhs = nub $ concat [ [l,r ] | l <- lhs, r <- rhs, range l == range r]
-
-mergeE :: Monad m => m Equ -> m Equ -> m Equ
-mergeE = liftM2 mergeE'
+mergeE' lhs rhs = nub $ concat [ [l,r ] | l <- lhs, r <- rhs , eqRanges l r]
+  where
+    eqRanges a b = evalSem $ do a' <- range a -- I dont like this eval call
+                                b' <- range b
+                                return $ a' == b'
 
 sortE' :: Equ -> Equ
 sortE' = sort
@@ -230,18 +234,33 @@ debugE' :: Equ -> String
 debugE' = Prelude.foldr (++) "" . fmap debugC'
 
 debugO :: Sem Obj -> String
-debugO = go . runExcept
-  where go (Right a) = debugO' a
-        go (Left err) = show err
+debugO = debugMaker go
+  where
+    go (Right a) = debugO' a
+    go (Left err) = show err
 
--- debugM :: Sem Morph -> String
--- debugM (Right a) = debugM' a
--- debugM (Left err) = show err
+debugMaker :: (Either ErrMsg a -> String) -> Sem a -> String -- fmap?
+debugMaker f = f . flip evalState emptySt . runExceptT
 
--- debugC :: Sem Comp -> String
--- debugC (Right a) = debugC' a
--- debugC (Left err) = show err
+debugM :: Sem Morph -> String
+debugM = debugMaker go
+  where
+    go (Right a) = debugM' a
+    go (Left err) = show err
 
--- debugE :: Sem Equ -> String
--- debugE (Right a) = debugE' a
--- debugE (Left err) = show err
+debugC :: Sem Comp -> String
+debugC = debugMaker go
+  where
+    go (Right a) = debugC' a
+    go (Left err) = show err
+
+debugE :: Sem Equ -> String
+debugE = debugMaker go
+  where
+    go (Right a) = debugE' a
+    go (Left err) = show err
+
+evalSem :: Sem a -> a
+evalSem = extractR . flip evalState emptySt . runExceptT
+  where extractR (Right a) = a
+        extractR (Left b) = error $ show b

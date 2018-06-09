@@ -21,8 +21,6 @@ import           Control.Monad.Except (ExceptT)
 import           Data.Traversable    (Traversable)
 import           Data.Map            (Map)
 import           Control.Monad.State (State)
--- import           Control.Monad.Error.Class
--- import           Control.Monad.State.Class
 import           GHC.Generics        (Generic)
 
 
@@ -46,6 +44,7 @@ data Type = Homo
 data Err a = MisMatch a
            | NoObj a
            | BadLoc a
+           | Multiple [Err a]
            deriving (Eq,Show,Functor,Foldable,Traversable)
 
 type ErrMsg = Err String
@@ -116,3 +115,8 @@ instance Show Obj where
 
 instance Show Morph where
   show Morph{..} = _mLabel ++ " : " ++  _mFrom ++ " ~~> " ++ _mTo
+
+instance Monoid a => Monoid (Err a) where
+  mempty = Multiple []
+  (Multiple xs) `mappend` (Multiple ys) = Multiple $ xs `mappend` ys
+  a `mappend` b = Multiple $ [a,b]
