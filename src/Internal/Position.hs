@@ -90,12 +90,15 @@ underBy :: Double -> Comm Comp -> Comm Comp -> Sem Comp
 underBy d low high = lift $ low >>= return . mapM_ (transY d) >> low `merge` high
 
 under :: Comm Comp -> Comm Comp -> Sem Comp
-under = underBy 0
+under = underBy 2
 
 onTop :: Comm Comp -> Comm Comp -> Sem Comp
 onTop = flip under
 
-underEBy' :: Double -> Comm Equ -> Comm Equ -> Sem Equ
-underEBy' d lows highs = do ls <- lift lows
-                            sequence_ $ mapM_ (transY d) <$> ls
-                            lift $ lows `mergeE` highs
+underEBy :: Double -> Comm Equ -> Comm Equ -> Sem Equ
+underEBy d lows highs = do ls <- lift lows
+                           sequence_ $ mapM_ (transY d) <$> ls
+                           lift $ lows `mergeE` highs
+
+underE :: Comm Equ -> Comm Equ -> Sem Equ
+underE = underEBy 2

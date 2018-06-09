@@ -70,10 +70,10 @@ h = lift $ mkMph ("A") "h" ("C")
 i = lift $ mkMph ("A'") "i" ("C")
 j = lift $ mkMph ("A'") "j" ("B")
 
-t1 :: Comm Equ
+t1 :: Sem Equ
 t1 = tri g f h
 
-t2 :: Comm Equ
+t2 :: Sem Equ
 t2 = tri g j i
 
 test' = t1 `underE` t2

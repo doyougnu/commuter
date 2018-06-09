@@ -2,9 +2,9 @@
 module Internal.Core where
 
 import Control.Lens
-import Control.Monad.Except (catchError)
-import Control.Monad        (liftM,liftM2)
-import Control.Monad.State  (modify)
+import Control.Monad.Except (throwError, runExcept, catchError)
+import Control.Monad        (liftM, liftM2)
+import Control.Monad.State  (modify,lift)
 import Data.Semigroup       ((<>))
 import Data.List            (sort,nub)
 import Data.Map
@@ -64,15 +64,15 @@ updateXY :: Double -> Double -> Loc -> Loc
 updateXY x_ y_ = non def %~ (x +~ x_) . (y +~ y_)
 
 -- | these are just lenses I don't know how to write
-domain :: Comp -> Comm String
+domain :: Comp -> Sem String
 domain cs = (return . _mFrom . last $ cs) `catchError` handler
-  where handler _ = Left . NoObj $ "Could not find domain on: " ++ show cs
+  where handler _ = throwError . NoObj $ "Could not find domain on: " ++ show cs
 
-coDomain :: Comp -> Comm String
+coDomain :: Comp -> Sem String
 coDomain cs = (return . _mTo . head $ cs) `catchError` handler
-  where handler _ = Left . NoObj $ "Could not find range/coDomain on: " ++ show cs
+  where handler _ = throwError . NoObj $ "Could not find range/coDomain on: " ++ show cs
 
-range :: Comp -> Comm String
+range :: Comp -> Sem String
 range = coDomain
 
 setDomain' :: String -> Morph -> Morph
@@ -81,27 +81,27 @@ setDomain' = set mFrom
 setRange' :: String -> Morph -> Morph
 setRange' = set mTo
 
-setDomain :: String -> Comp -> Comm Comp
-setDomain _ [] = Left . NoObj $ "Cannot set domain on empty composition"
+setDomain :: String -> Comp -> Sem Comp
+setDomain _ [] = throwError . NoObj $ "Cannot set domain on empty composition"
 setDomain o (e:[]) = return $ setDomain' o e : []
 setDomain o (m:ms) = liftM2 (:) (return m) (setDomain o ms)
 
-setRange :: String -> Comp -> Comm Comp
-setRange _ [] = Left . NoObj $ "Cannot set range on empty composition"
+setRange :: String -> Comp -> Sem Comp
+setRange _ [] = throwError . NoObj $ "Cannot set range on empty composition"
 setRange o (e:[]) = return $ setRange' o e : []
 setRange o (m:ms) = liftM2 (:) (return m) (setRange o ms)
 
-liftToComp :: Morph -> Comm Comp
+liftToComp :: Morph -> Sem Comp
 liftToComp = return . pure
 
-mkMph :: String -> String -> String -> Comm Comp
+mkMph :: String -> String -> String -> Sem Comp
 mkMph = ((liftToComp. ) .) . mkMph'
 
-liftToEqu :: Morph -> Comm Equ
+liftToEqu :: Morph -> Sem Equ
 liftToEqu = return . pure . pure
 
-
--- | smart constructors. take two morphisms and force them to compose by prefering the rhs and setting the lhs domain to the rhs's range
+-- | smart constructors. take two morphisms and force them to compose by
+-- prefering the rhs and setting the lhs domain to the rhs's range
 infixr 9 |...|
 (|...|) :: Morph -> Morph -> Comp
 fs |...| gs = [fs',gs]
@@ -109,9 +109,9 @@ fs |...| gs = [fs',gs]
         fs' = setDomain' gRange fs
 
 infixr 9 |..|
-(|..|) :: Morph -> Morph -> Comm Comp
-f |..| g | fD == gR = Right [f,g]
-         | otherwise = Left $ MisMatch err
+(|..|) :: Morph -> Morph -> Sem Comp
+f |..| g | fD == gR = return [f,g]
+         | otherwise = throwError $ MisMatch err
   where gR = _mTo g
         fD = _mFrom f
         err = "The range of " ++ show g
@@ -119,20 +119,21 @@ f |..| g | fD == gR = Right [f,g]
 
 -- | Smart constructor that will type check the morphisms domain and codomain
 infixr 9 |.|
-(|.|) :: Comm Comp -> Comm Comp -> Comm Comp
+(|.|) :: Sem Comp -> Sem Comp -> Sem Comp
 fs |.| gs = do rngGs <- gs >>= range
                dmnFs <- fs >>= domain
                if rngGs == dmnFs
                   then (++) <$> fs <*> gs
-                  else Left $ MisMatch err
-  where err = "The range of " ++ show gs
-              ++ " does not match the domain of " ++ show fs
-
+                  else handler
+  where handler = do f <- fs
+                     g <- gs
+                     let err = "The range of " ++ show g ++ " does not match the domain of " ++ show f
+                     throwError $ MisMatch err
 
 -- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
 -- codmain to that of the rhs
 infixr 3 |=|
-(|=|) :: Comm Comp -> Comm Comp -> Comm Equ
+(|=|) :: Sem Comp -> Sem Comp -> Sem Equ
 lhs |=| rhs = do rhsDomain <- rhs >>= domain
                  rhsRange <- rhs >>= range
                  lhs' <- lhs >>= setDomain rhsDomain
@@ -140,34 +141,47 @@ lhs |=| rhs = do rhsDomain <- rhs >>= domain
                  rhs' <- rhs
                  return $ [lhs'', rhs']
 
--- | This is Comm Comp for convienience it could easily just be comp -> comp ->
+-- | This is Sem Comp for convienience it could easily just be comp -> comp ->
 -- comm Equ
 infixr 3 |==|
-(|==|) :: Comm Comp -> Comm Comp -> Comm Equ
+(|==|) :: Sem Comp -> Sem Comp -> Sem Equ
 lhs |==| rhs = do lhsR <- lhs >>= range
                   lhsD <- lhs >>= domain
                   rhsR <- rhs >>= range
                   rhsD <- rhs >>= domain
                   if lhsR == rhsR && lhsD == rhsD
                      then sequence $ [lhs,rhs]
-                     else Left $ MisMatch err
+                     else throwError $ MisMatch err
   where
     err = "The range or domain of " ++ show lhs
       ++ " does not match the range or domain of " ++ show rhs
 
 -- | A triangle shape
-tri :: Comm Comp -> Comm Comp -> Comm Comp -> Comm Equ
-tri f g h = f |.| g |==| h
+tri' :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
+tri' f g h = f |.| g |==| h
 
 -- | a square shape
-sqr :: Comm Comp -> Comm Comp -> Comm Comp -> Comm Comp -> Comm Equ
-sqr f g h i = f |.| g |=| h |.| i
+sqr' :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
+sqr' f g h i = f |.| g |=| h |.| i
+
+tri :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
+tri f g h = do f' <- f
+               g' <- g
+               h' <- h
+               tri' (return f') (return g') (return h')
+
+sqr :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
+sqr f g h i = do f' <- f
+                 g' <- g
+                 h' <- h
+                 i' <- i
+                 sqr' (return f') (return g') (return h') (return i')
 
 -- [[g,f], [i,h]] [[l,g],[k,j]] ==> [[k,j,f],[l,g,f],[l,i,h]]
 
 -- [[g,f], [i,h]] [[k,j],[f,l]] ==> [[g,k,j],[g,f,l],[i,h,l]]
 
-merge' :: Comp -> Comp -> Comm Comp
+merge' :: Comp -> Comp -> Sem Comp
 merge' lhs []  = return lhs
 merge' []  rhs = return rhs
 merge' lhs rhs = foldr1 ((<>)) $ left ++ right
@@ -178,7 +192,7 @@ merge' lhs rhs = foldr1 ((<>)) $ left ++ right
                    let r' = liftToComp r
                    return $ (r' |.| (return lhs)) <> (return lhs |.| r')
 
-merge :: Comm Comp -> Comm Comp -> Comm Comp
+merge :: Sem Comp -> Sem Comp -> Sem Comp
 merge lhs rhs = do l <- lhs
                    r <- rhs
                    l `merge'` r
@@ -215,18 +229,19 @@ debugC' = Prelude.foldr (++) "" . fmap debugM'
 debugE' :: Equ -> String
 debugE' = Prelude.foldr (++) "" . fmap debugC'
 
-debugO :: Comm Obj -> String
-debugO (Right a) = debugO' a
-debugO (Left err) = show err
+debugO :: Sem Obj -> String
+debugO = go . runExcept
+  where go (Right a) = debugO' a
+        go (Left err) = show err
 
-debugM :: Comm Morph -> String
-debugM (Right a) = debugM' a
-debugM (Left err) = show err
+-- debugM :: Sem Morph -> String
+-- debugM (Right a) = debugM' a
+-- debugM (Left err) = show err
 
-debugC :: Comm Comp -> String
-debugC (Right a) = debugC' a
-debugC (Left err) = show err
+-- debugC :: Sem Comp -> String
+-- debugC (Right a) = debugC' a
+-- debugC (Left err) = show err
 
-debugE :: Comm Equ -> String
-debugE (Right a) = debugE' a
-debugE (Left err) = show err
+-- debugE :: Sem Equ -> String
+-- debugE (Right a) = debugE' a
+-- debugE (Left err) = show err

@@ -9,7 +9,6 @@ module Internal.Types ( module Data.Map
                       , ErrMsg
                       , Comp
                       , Equ
-                      , Comm
                       , PosMap
                       , Sem) where
 
@@ -18,9 +17,10 @@ import           Data.Bifoldable     (Bifoldable (..))
 import           Data.Bifunctor      (Bifunctor (..))
 import           Data.Bitraversable  (Bitraversable (..))
 import           Data.Default.Class
+import           Control.Monad.Except (ExceptT)
 import           Data.Traversable    (Traversable)
 import           Data.Map            (Map)
-import           Control.Monad.State (StateT)
+import           Control.Monad.State (State)
 -- import           Control.Monad.Error.Class
 -- import           Control.Monad.State.Class
 import           GHC.Generics        (Generic)
@@ -79,10 +79,8 @@ data Morph2 = Morph2 { _m2From  :: Morph                    -- ^ The arrow the a
 -- | TODO this type needs to change I do think we should go down the list route
 type Comp = [Morph]
 type Equ  = [Comp]
-
-type Comm = Either ErrMsg
 type PosMap = Map String Obj
-type Sem = StateT PosMap Comm
+type Sem = ExceptT ErrMsg (State PosMap)
 
 instance Eq Obj where Obj{_name=n} == Obj{_name=m} = n == m
 instance Eq Morph where
@@ -108,6 +106,7 @@ instance Default Morph where
                , _mCustomizations = []
                , _mfsize = 0.22
                }
+
 instance Default Morph2
 instance (Default a, Default b) => Default (Loc' a b)
   where def = Loc' def def
