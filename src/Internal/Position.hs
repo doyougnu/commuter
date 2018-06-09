@@ -1,7 +1,6 @@
 module Internal.Position where
 
 import Control.Lens hiding  (under)
-import Control.Monad.State  (lift)
 
 import Internal.Types
 import Internal.Core
@@ -78,27 +77,26 @@ setML fcs tcs = overLoc_ (uncurry setXY fcs) (uncurry setXY tcs)
 -- setML' floc tloc = overLoc_ (const floc) (const tloc)
 
 -- -- | set the location in the context of the comm monad
--- setL :: (Double,Double) -> (Double,Double) -> Comm Comp -> Comm ()
+-- setL :: (Double,Double) -> (Double,Double) -> Sem Comp -> Sem ()
 -- setL froms tos = fmap (fmap setML froms) tos
 
 -- | Set the position for a composed morphism
-setPos :: [((Double, Double), (Double, Double))] -> Comm Comp -> Sem ()
-setPos cs (Right xs) = sequence_ [ uncurry setML c x_ | c <- cs, x_ <- xs ]
-setPos _  (Left _)   = return ()
+setPos :: [((Double, Double), (Double, Double))] -> Comp -> Sem ()
+setPos cs xs = sequence_ [ uncurry setML c x_ | c <- cs, x_ <- xs ]
 
-underBy :: Double -> Comm Comp -> Comm Comp -> Sem Comp
-underBy d low high = lift $ low >>= return . mapM_ (transY d) >> low `merge` high
+underBy :: Double -> Sem Comp -> Sem Comp -> Sem Comp
+underBy d low high = low >>= return . mapM_ (transY d) >> low `merge` high
 
-under :: Comm Comp -> Comm Comp -> Sem Comp
+under :: Sem Comp -> Sem Comp -> Sem Comp
 under = underBy 2
 
-onTop :: Comm Comp -> Comm Comp -> Sem Comp
+onTop :: Sem Comp -> Sem Comp -> Sem Comp
 onTop = flip under
 
-underEBy :: Double -> Comm Equ -> Comm Equ -> Sem Equ
-underEBy d lows highs = do ls <- lift lows
+underEBy :: Double -> Sem Equ -> Sem Equ -> Sem Equ
+underEBy d lows highs = do ls <- lows
                            sequence_ $ mapM_ (transY d) <$> ls
-                           lift $ lows `mergeE` highs
+                           lows `mergeE` highs
 
-underE :: Comm Equ -> Comm Equ -> Sem Equ
+underE :: Sem Equ -> Sem Equ -> Sem Equ
 underE = underEBy 2

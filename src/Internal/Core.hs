@@ -33,6 +33,9 @@ mkMph2 :: String -> Morph -> Morph2
 mkMph2 lbl t = def & m2Label .~ lbl
                    & m2To    .~ t
 
+mkMph :: String -> String -> String -> Sem Comp
+mkMph = ((liftToComp. ) .) . mkMph'
+
 -- | get the object names out of a morph
 objectNamesM :: Morph -> [String]
 objectNamesM m = [_mFrom m, _mTo m]
@@ -93,9 +96,6 @@ setRange o (m:ms) = liftM2 (:) (return m) (setRange o ms)
 
 liftToComp :: Morph -> Sem Comp
 liftToComp = return . pure
-
-mkMph :: String -> String -> String -> Sem Comp
-mkMph = ((liftToComp. ) .) . mkMph'
 
 liftToEqu :: Morph -> Sem Equ
 liftToEqu = return . pure . pure
@@ -206,6 +206,9 @@ mergeE' lhs rhs = nub $ concat [ [l,r ] | l <- lhs, r <- rhs , eqRanges l r]
     eqRanges a b = evalSem $ do a' <- range a -- I dont like this eval call
                                 b' <- range b
                                 return $ a' == b'
+
+mergeE :: Monad m => m Equ -> m Equ -> m Equ
+mergeE = liftM2 mergeE'
 
 sortE' :: Equ -> Equ
 sortE' = sort

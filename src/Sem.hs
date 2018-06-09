@@ -5,9 +5,9 @@ import Diagrams.Prelude hiding ((<>), tri, under)
 
 import Data.Monoid                    ((<>))
 import Data.Maybe                     (fromJust, isNothing)
-import Data.List                      (intersect)
 import Data.Map                       ((!))
-import Control.Monad.State            (lift, runStateT)
+import Control.Monad.State            (runState)
+import Control.Monad.Except           (runExceptT)
 
 import Internal.Types
 import Internal.Core
@@ -60,15 +60,21 @@ _arrow Morph{..} =
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
+f' :: Sem Comp
 f' = mkMph "A" "f" ("B")
+g' :: Sem Comp
 g' = mkMph "B" "g" "C"
 
 f :: Sem Comp
-f = lift $ mkMph ("A") "f" ("B")
-g = lift $ mkMph ("B") "g" ("C")
-h = lift $ mkMph ("A") "h" ("C")
-i = lift $ mkMph ("A'") "i" ("C")
-j = lift $ mkMph ("A'") "j" ("B")
+f = mkMph ("A") "f" ("B")
+g :: Sem Comp
+g = mkMph ("B") "g" ("C")
+h :: Sem Comp
+h = mkMph ("A") "h" ("C")
+i :: Sem Comp
+i = mkMph ("A'") "i" ("C")
+j :: Sem Comp
+j = mkMph ("A'") "j" ("B")
 
 t1 :: Sem Equ
 t1 = tri g f h
@@ -76,6 +82,7 @@ t1 = tri g f h
 t2 :: Sem Equ
 t2 = tri g j i
 
+test' :: Sem Equ
 test' = t1 `underE` t2
 
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
@@ -95,9 +102,9 @@ sem' m objs = (_node fromObj <> _node toObj) # _arrow m
 -- sem (Left err) = error . show $ err
 -- sem (Right ms) = foldMap (foldMap sem') ms
 
-sem'' :: Sem Equ -> Comm (Equ, PosMap)
-sem'' es = runStateT es emptySt
+sem'' :: Sem Equ -> (Either ErrMsg Equ, PosMap)
+sem'' = flip runState emptySt . runExceptT
 
-sem :: Comm (Equ, PosMap) -> QDiagram B V2 Double Any
-sem (Left err) = error . show $ err
-sem (Right (ms, objs)) = foldMap (foldMap $ flip sem' objs) ms
+sem :: (Either ErrMsg Equ, PosMap) -> QDiagram B V2 Double Any
+sem (Left err, _) = error . show $ err
+sem (Right ms, objs) = foldMap (foldMap $ flip sem' objs) ms
