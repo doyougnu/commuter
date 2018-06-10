@@ -115,34 +115,36 @@ liftToEqu = return . pure . pure
 
 -- | smart constructors. take two morphisms and force them to compose by
 -- prefering the rhs and setting the lhs domain to the rhs's range
-infixr 9 |...|
-(|...|) :: Morph -> Morph -> Comp
-fs |...| gs = [fs',gs]
+infixr 9 |..|
+(|..|) :: Morph -> Morph -> Comp
+fs |..| gs = [fs',gs]
   where gRange = _mTo gs
         fs' = setDomain' gRange fs
 
--- instance Composable Morph Obj where
---   rrange = undefined
---   rdomain = undefined
 
+instance Composable Morph (Sem Comp) where (|.|) = compM
+instance Composable (Sem Morph) (Sem Comp) where
+  a |.| b = do a' <- a
+               b' <- b
+               a' |.| b'
 
-infixr 9 |..|
-(|..|) :: Morph -> Morph -> Sem Comp
-f |..| g | fD == gR = return [f,g]
-         | otherwise = throwError $ MisMatch err
+compM :: Morph -> Morph -> Sem Comp
+f `compM` g | fD == gR = return [f,g]
+          | otherwise = throwError $ MisMatch err
   where gR = _mTo g
         fD = _mFrom f
         err = "The range of " ++ show g
               ++ " does not match the domain of " ++ show f
 
 -- | Smart constructor that will type check the morphisms domain and codomain
-infixr 9 |.|
-(|.|) :: Sem Comp -> Sem Comp -> Sem Comp
-fs |.| gs = do rngGs <- gs >>= range
-               dmnFs <- fs >>= domain
-               if rngGs == dmnFs
-                  then (++) <$> fs <*> gs
-                  else handler
+instance Composable (Sem Comp) (Sem Comp) where (|.|) = comp
+
+comp :: Sem Comp -> Sem Comp -> Sem Comp
+fs `comp` gs = do rngGs <- gs >>= range
+                  dmnFs <- fs >>= domain
+                  if rngGs == dmnFs
+                    then (++) <$> fs <*> gs
+                    else handler
   where handler = do f <- fs
                      g <- gs
                      let err = "The range of " ++ show g ++ " does not match the domain of " ++ show f
@@ -161,13 +163,18 @@ lhs |=| rhs = do rhsDomain <- rhs >>= domain
 
 -- | This is Sem Comp for convienience it could easily just be comp -> comp ->
 -- comm Equ
-infixr 3 |==|
-(|==|) :: Sem Comp -> Sem Comp -> Sem Equ
-lhs |==| rhs = do lhsR <- lhs >>= range
-                  lhsD <- lhs >>= domain
-                  rhsR <- rhs >>= range
-                  rhsD <- rhs >>= domain
-                  if lhsR == rhsR && lhsD == rhsD
+instance Equatable (Sem Comp) (Sem Equ) where (|==|) = eq'
+instance Equatable (Sem Morph) (Sem Equ) where
+  a |==| b = do a' <- a
+                b' <- b
+                liftToComp a' |==| liftToComp b'
+
+eq' :: Sem Comp -> Sem Comp -> Sem Equ
+lhs `eq'` rhs = do lhsR <- lhs >>= range
+                   lhsD <- lhs >>= domain
+                   rhsR <- rhs >>= range
+                   rhsD <- rhs >>= domain
+                   if lhsR == rhsR && lhsD == rhsD
                      then sequence $ [lhs,rhs]
                      else handler
   where
@@ -178,19 +185,14 @@ lhs |==| rhs = do lhsR <- lhs >>= range
                  throwError $ MisMatch err
 
 -- | A triangle shape
-tri :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
-tri f g h = f |.| g |==| h
+tri :: (Composable a b, Equatable b c) => a -> a -> b -> c
+tri f g h = (f |.| g) |==| h
 
 -- | a square shape
-sqr' :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
-sqr' f g h i = f |.| g |=| h |.| i
-
-sqr :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
-sqr f g h i = do f' <- f
-                 g' <- g
-                 h' <- h
-                 i' <- i
-                 sqr' (return f') (return g') (return h') (return i')
+-- sqr :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
+sqr :: (Composable b (Sem Comp), Composable a (Sem Comp)) =>
+  a -> a -> b -> b -> Sem Equ
+sqr f g h i = f |.| g |=| h |.| i
 
 -- [[g,f], [i,h]] [[l,g],[k,j]] ==> [[k,j,f],[l,g,f],[l,i,h]]
 

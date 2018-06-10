@@ -48,6 +48,8 @@ default-extensions:
   - DeriveAnyClass
   - MultiParamTypeClasses
   - NamedFieldPuns
+  - TypeSynonymInstances
+  - FlexibleInstances
 
 library:
   source-dirs: src

@@ -106,10 +106,10 @@ j :: Sem Morph
 j = mkMphAt ("A'") "j" ("B") (0,0) (2,0)
 
 t1 :: Sem Equ
-t1 = tri (g' >>= liftToComp) (f' >>= liftToComp) (h >>= liftToComp)
+t1 = tri g' f' (h >>= liftToComp)
 
 t2 :: Sem Equ
-t2 = tri (g >>= liftToComp) (j >>= liftToComp) (i >>= liftToComp)
+t2 = sqr f' g' h' f
 
 -- test' :: Sem Equ
 -- test' = t1 `underE` t2

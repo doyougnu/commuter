@@ -11,7 +11,8 @@ module Internal.Types ( module Data.Map
                       , Equ
                       , PosMap
                       , Sem
-                      , Composable(..)) where
+                      , Composable(..)
+                      , Equatable(..)) where
 
 
 import           Data.Bifoldable     (Bifoldable (..))
@@ -119,18 +120,17 @@ instance Monoid a => Monoid (Err a) where
   (Multiple xs) `mappend` (Multiple ys) = Multiple $ xs `mappend` ys
   a `mappend` b = Multiple $ [a,b]
 
-class Composable t a where
+class Composable a b where
   -- | Any instances should obey the following laws:
   -- f |.| id = f
   -- id |.| f = f
   -- range id = id
   -- domain id = id
 
-  -- | The domain of what is composable
-  rdomain :: t a -> a
-
-  -- | The range of what is composable
-  rrange  :: t a -> a
-
   -- | The actual composition operator
-  (|.....|)  :: t a -> t a -> t a
+  infixr 9 |.|
+  (|.|)  :: a -> a -> b
+
+class Equatable a b where
+  infixr 3 |==|
+  (|==|)  :: a -> a -> b
