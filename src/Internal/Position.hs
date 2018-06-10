@@ -1,10 +1,8 @@
 module Internal.Position where
 
 import Control.Lens hiding  (under)
-import Control.Monad.State  (get, modify, MonadState)
-import Control.Monad.Except (MonadError, throwError, catchError)
-import Data.Maybe           (isNothing)
-import Data.Map             ((!), adjust)
+import Control.Monad.State  (modify, MonadState)
+import Data.Map             (adjust)
 
 import Internal.Types
 import Internal.Core
@@ -55,8 +53,12 @@ setTo' :: Loc -> Morph -> Sem ()
 setTo' = overLoc_ id . const
 
 -- | given two pairs of coordinates apply both to the morph
-trans :: (Double, Double) -> (Double, Double) -> Morph -> Sem ()
-trans fcs tcs = overLoc_ (uncurry updateXY fcs) (uncurry updateXY tcs)
+transM :: (Double, Double) -> (Double, Double) -> Morph -> Sem ()
+transM fcs tcs = overLoc_ (uncurry updateXY fcs) (uncurry updateXY tcs)
+
+-- | given two pairs of coordinates apply both to the morph
+transC :: (Double, Double) -> (Double, Double) -> Comp -> Sem ()
+transC = (mapM_ .) . transM
 
 -- | the unticked version of trans' is overLoc_
 trans' :: (Loc -> Loc) -> (Loc -> Loc) -> Morph -> Sem ()

@@ -47,16 +47,23 @@ mkMph frm lbl to_
     handler = NoObj $ "Object names cannot be empty: "
               ++ show (mkMph' frm lbl to_)
 
+-- | Reverse the direction of the morphism
 coM :: Morph -> Morph
 coM m = m & mFrom .~ to_ & mTo .~ frm
   where frm = _mFrom m
         to_ = _mTo m
 
+-- | reverse the direction of the composition
 coComp :: Comp -> Comp
 coComp = fmap coM
 
+-- | reverse the direction of the equivalence
 coEqu :: Equ -> Equ
 coEqu = fmap coComp
+
+-- | map on the from and to fields of a morph
+bmap :: (String -> a) -> (String -> a) -> Morph -> [a]
+bmap f g m = [f (_mFrom m), g (_mTo m)]
 
 -- | get the object names out of a morph
 objectNamesM :: Morph -> [String]

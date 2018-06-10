@@ -14,12 +14,13 @@ import Diagrams.Prelude hiding (from, to, E)
 import Diagrams.Backend.PGF.CmdLine
 import Data.Text(Text)
 
-import Sem
+import Examples
+import Api
 
 
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
 instance IsName Text
 
 main :: IO ()
-main = mainWith $ sem test' # pad 3
+main = mainWith $ sem five_lemma # pad 3
 -- main = mainWith $ allRDs
