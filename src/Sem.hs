@@ -94,16 +94,13 @@ g = do m <- mkMph "B" "g" "C"
        return m
 
 h :: Sem Morph
-h = do m <- mkMph "A" "h" "C"
-       setOLoc 0 0 "A"
-       setOLoc 2 (-2) "C"
-       return m
+h = mkMph "C" "h" "C'"
 
 i :: Sem Morph
-i = mkMphAt "A'" "i" "C" (4,0) (2,-2)
+i = mkMph "A'" "i" "B'"
 
 j :: Sem Morph
-j = mkMphAt ("A'") "j" ("B") (0,0) (2,0)
+j = mkMph ("B'") "j" ("C'")
 
 t1 :: Sem Equ
 t1 = tri g' f' (h >>= liftToComp)
@@ -111,11 +108,19 @@ t1 = tri g' f' (h >>= liftToComp)
 t2 :: Sem Equ
 t2 = sqr f' g' h' f
 
+t3 :: Sem Comp
+t3 = do h <- mkMph "C" "h" "C'"
+        i <- mkMph "C" "h" "C'"
+        h |.| i
+
+-- t4 :: Sem Equ
+-- t4 = (h |.| j) |==| i
+
 -- test' :: Sem Equ
 -- test' = t1 `underE` t2
 
-test' :: Sem Equ
-test' = t1
+-- test' :: Sem Equ
+-- test' = t3 `under` t4
 
 -- test = (m2 |.| m1) |=| (m4 |.| m3)
 -- test' = do

@@ -4,7 +4,7 @@ module Internal.Core where
 import Control.Lens
 import Control.Monad.Except (throwError, runExceptT, catchError)
 import Control.Monad        (liftM, liftM2)
-import Control.Monad.State  (evalState, modify)
+import Control.Monad.State  (evalState, modify,get,put)
 import Control.Applicative  ((<|>))
 import Data.List            (sort,nub)
 import Data.Map hiding      (null)
@@ -122,11 +122,29 @@ fs |..| gs = [fs',gs]
         fs' = setDomain' gRange fs
 
 
-instance Composable Morph (Sem Comp) where (|.|) = compM
-instance Composable (Sem Morph) (Sem Comp) where
+-- instance Composable Morph Morph (Sem Comp) where (|.|) = compM
+-- instance Composable Morph Morph (Sem Equ) where
+--   m1 |.| m2 = do compd <- m1 `compM` m2
+--                  return . pure $ compd
+-- instance Composable (Sem Morph) (Sem Morph) (Sem Equ) where
+--   m1 |.| m2 = do m1' <- m1
+--                  m2' <- m2
+--                  m1' |.| m2'
+instance Composable (Sem Morph) (Sem Morph) (Sem Comp) where
   a |.| b = do a' <- a
                b' <- b
                a' |.| b'
+
+instance Composable Morph (Sem Comp) (Sem Comp) where a |.| b = liftToComp a |.| b
+instance Composable (Sem Comp) Morph (Sem Comp) where a |.| b = a |.| liftToComp b
+instance Composable (Sem Morph) (Sem Comp) (Sem Comp) where
+  a |.| b = do a' <- a
+               a' |.| b
+instance Composable (Sem Comp) Comp (Sem Comp) where
+  a |.| b = a |.| (return b :: Sem Comp)
+instance Composable Comp (Sem Comp) (Sem Comp) where
+  a |.| b = (return a :: Sem Comp) |.| b
+instance Composable Morph Morph (Sem Comp) where (|.|) = compM
 
 compM :: Morph -> Morph -> Sem Comp
 f `compM` g | fD == gR = return [f,g]
@@ -137,7 +155,7 @@ f `compM` g | fD == gR = return [f,g]
               ++ " does not match the domain of " ++ show f
 
 -- | Smart constructor that will type check the morphisms domain and codomain
-instance Composable (Sem Comp) (Sem Comp) where (|.|) = comp
+instance Composable (Sem Comp) (Sem Comp) (Sem Comp) where (|.|) = comp
 
 comp :: Sem Comp -> Sem Comp -> Sem Comp
 fs `comp` gs = do rngGs <- gs >>= range
@@ -167,6 +185,7 @@ instance Equatable (Sem Comp) (Sem Equ) where (|==|) = eq'
 instance Equatable (Sem Morph) (Sem Equ) where
   a |==| b = do a' <- a
                 b' <- b
+                overLoc_ id (fmap (x %~ (+2))) b'
                 liftToComp a' |==| liftToComp b'
 
 eq' :: Sem Comp -> Sem Comp -> Sem Equ
@@ -185,13 +204,12 @@ lhs `eq'` rhs = do lhsR <- lhs >>= range
                  throwError $ MisMatch err
 
 -- | A triangle shape
-tri :: (Composable a b, Equatable b c) => a -> a -> b -> c
 tri f g h = (f |.| g) |==| h
 
 -- | a square shape
 -- sqr :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
-sqr :: (Composable b (Sem Comp), Composable a (Sem Comp)) =>
-  a -> a -> b -> b -> Sem Equ
+-- sqr :: (Composable b (Sem Comp), Composable a (Sem Comp)) =>
+--   a -> a -> b -> b -> Sem Equ
 sqr f g h i = f |.| g |=| h |.| i
 
 -- [[g,f], [i,h]] [[l,g],[k,j]] ==> [[k,j,f],[l,g,f],[l,i,h]]
@@ -204,10 +222,10 @@ merge' []  rhs = return rhs
 merge' lhs rhs = foldr1 ((<|>)) $ left ++ right
   where left = do l <- lhs
                   let l' = liftToComp l
-                  return $ (l' |.| (return rhs)) <|> (return rhs |.| l')
+                  return $ (l' |.| rhs) <|> (rhs |.| l')
         right = do r <- rhs
                    let r' = liftToComp r
-                   return $ (r' |.| (return lhs)) <|> (return lhs |.| r')
+                   return $ (r' |.| lhs) <|> (lhs |.| r')
 
 merge :: Sem Comp -> Sem Comp -> Sem Comp
 merge lhs rhs = do l <- lhs

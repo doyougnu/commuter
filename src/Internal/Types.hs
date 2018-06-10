@@ -120,7 +120,7 @@ instance Monoid a => Monoid (Err a) where
   (Multiple xs) `mappend` (Multiple ys) = Multiple $ xs `mappend` ys
   a `mappend` b = Multiple $ [a,b]
 
-class Composable a b where
+class Composable a b c where
   -- | Any instances should obey the following laws:
   -- f |.| id = f
   -- id |.| f = f
@@ -129,7 +129,7 @@ class Composable a b where
 
   -- | The actual composition operator
   infixr 9 |.|
-  (|.|)  :: a -> a -> b
+  (|.|)  :: a -> b -> c
 
 class Equatable a b where
   infixr 3 |==|

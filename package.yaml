@@ -50,6 +50,7 @@ default-extensions:
   - NamedFieldPuns
   - TypeSynonymInstances
   - FlexibleInstances
+  - FunctionalDependencies
 
 library:
   source-dirs: src
