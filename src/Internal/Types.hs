@@ -10,7 +10,8 @@ module Internal.Types ( module Data.Map
                       , Comp
                       , Equ
                       , PosMap
-                      , Sem) where
+                      , Sem
+                      , Composable(..)) where
 
 
 import           Data.Bifoldable     (Bifoldable (..))
@@ -107,11 +108,8 @@ instance Default Morph where
                }
 
 instance Default Morph2
-instance (Default a, Default b) => Default (Loc' a b)
-  where def = Loc' def def
-
-instance Show Obj where
-  show Obj{..} = show _name
+instance (Default a, Default b) => Default (Loc' a b) where def = Loc' def def
+instance Show Obj where show Obj{..} = show _name ++ show _oPos
 
 instance Show Morph where
   show Morph{..} = _mLabel ++ " : " ++  _mFrom ++ " ~~> " ++ _mTo
@@ -120,3 +118,19 @@ instance Monoid a => Monoid (Err a) where
   mempty = Multiple []
   (Multiple xs) `mappend` (Multiple ys) = Multiple $ xs `mappend` ys
   a `mappend` b = Multiple $ [a,b]
+
+class Composable t a where
+  -- | Any instances should obey the following laws:
+  -- f |.| id = f
+  -- id |.| f = f
+  -- range id = id
+  -- domain id = id
+
+  -- | The domain of what is composable
+  rdomain :: t a -> a
+
+  -- | The range of what is composable
+  rrange  :: t a -> a
+
+  -- | The actual composition operator
+  (|.....|)  :: t a -> t a -> t a

@@ -7,7 +7,7 @@ import Control.Monad        (liftM, liftM2)
 import Control.Monad.State  (evalState, modify)
 import Control.Applicative  ((<|>))
 import Data.List            (sort,nub)
-import Data.Map
+import Data.Map hiding      (null)
 
 import Internal.Types
 
@@ -34,10 +34,16 @@ mkMph2 lbl t = def & m2Label .~ lbl
                    & m2To    .~ t
 
 mkMph :: String -> String -> String -> Sem Morph
-mkMph frm lbl to = do let m = mkMph' frm lbl to
-                      insertObj $ mkObj frm
-                      insertObj $ mkObj to
-                      return m
+mkMph frm lbl to_
+  | null frm || null to_ || null lbl = throwError handler
+  | otherwise = do let m = mkMph' frm lbl to_
+                   insertObj $ mkObj frm
+                   insertObj $ mkObj to_
+                   return m
+  where
+    handler :: ErrMsg
+    handler = NoObj $ "Object names cannot be empty: "
+              ++ show (mkMph' frm lbl to_)
 
 -- | get the object names out of a morph
 objectNamesM :: Morph -> [String]
@@ -45,11 +51,11 @@ objectNamesM m = [_mFrom m, _mTo m]
 
 -- | get the object names out of a composition
 objectNamesC :: Comp -> [String]
-objectNamesC = concatMap objectNamesM
+objectNamesC = nub . concatMap objectNamesM
 
 -- | get the object names out of an equivalence
 objectNamesE :: Equ -> [String]
-objectNamesE = concatMap objectNamesC
+objectNamesE = nub . concatMap objectNamesC
 
 -- | Insert an object into the state
 insertObj :: Obj -> Sem ()
@@ -115,6 +121,11 @@ fs |...| gs = [fs',gs]
   where gRange = _mTo gs
         fs' = setDomain' gRange fs
 
+-- instance Composable Morph Obj where
+--   rrange = undefined
+--   rdomain = undefined
+
+
 infixr 9 |..|
 (|..|) :: Morph -> Morph -> Sem Comp
 f |..| g | fD == gR = return [f,g]
@@ -167,18 +178,12 @@ lhs |==| rhs = do lhsR <- lhs >>= range
                  throwError $ MisMatch err
 
 -- | A triangle shape
-tri' :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
-tri' f g h = f |.| g |==| h
+tri :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
+tri f g h = f |.| g |==| h
 
 -- | a square shape
 sqr' :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
 sqr' f g h i = f |.| g |=| h |.| i
-
-tri :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
-tri f g h = do f' <- f
-               g' <- g
-               h' <- h
-               tri' (return f') (return g') (return h')
 
 sqr :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
 sqr f g h i = do f' <- f
@@ -207,15 +212,21 @@ merge lhs rhs = do l <- lhs
                    r <- rhs
                    l `merge'` r
 
-mergeE' :: Equ -> Equ -> Equ
-mergeE' lhs rhs = nub $ concat [ [l,r ] | l <- lhs, r <- rhs , eqRanges l r]
-  where
-    eqRanges a b = evalSem $ do a' <- range a -- I dont like this eval call
-                                b' <- range b
-                                return $ a' == b'
+mergeE' :: Equ -> Equ -> Sem Equ
+mergeE' e   [] = return e
+mergeE' []  e  = return e
+mergeE' lhs rhs = if null solution
+                  then throwError $ NoObj err
+                  else return solution
+  where range' = _mTo . head
+        solution = nub . concat $
+                   [ [ l,r ] | l <- lhs , r <- rhs , range' l == range' r]
+        err = "Cannot find a shared range between: " ++ show lhs ++ " and :" ++ show rhs
 
-mergeE :: Monad m => m Equ -> m Equ -> m Equ
-mergeE = liftM2 mergeE'
+mergeE :: Sem Equ -> Sem Equ -> Sem Equ
+mergeE lhs rhs = do l <- lhs
+                    r <- rhs
+                    l `mergeE'` r
 
 sortE' :: Equ -> Equ
 sortE' = sort
@@ -269,8 +280,3 @@ debugE = debugMaker go
   where
     go (Right a) = debugE' a
     go (Left err) = show err
-
-evalSem :: Sem a -> a
-evalSem = extractR . flip evalState emptySt . runExceptT
-  where extractR (Right a) = a
-        extractR (Left b) = error $ show b

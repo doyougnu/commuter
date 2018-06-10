@@ -1,6 +1,10 @@
 module Internal.Position where
 
 import Control.Lens hiding  (under)
+import Control.Monad.State  (get, modify, MonadState)
+import Control.Monad.Except (MonadError, throwError, catchError)
+import Data.Maybe           (isNothing)
+import Data.Map             ((!), adjust)
 
 import Internal.Types
 import Internal.Core
@@ -69,20 +73,26 @@ transY d = overLoc_ f f
   where f = non def . y %~ (+d)
 
 -- | helper function to set the position instead of applying a transformation
-setML :: (Double,Double) -> (Double,Double) -> Morph -> Sem ()
-setML fcs tcs = overLoc_ (uncurry setXY fcs) (uncurry setXY tcs)
+setMLoc :: (Double,Double) -> (Double,Double) -> Morph -> Sem ()
+setMLoc fcs tcs = overLoc_ (uncurry setXY fcs) (uncurry setXY tcs)
 
--- -- | Set both locations in a Morph given two locations
--- setML' :: Loc -> Loc -> Morph -> Sem ()
--- setML' floc tloc = overLoc_ (const floc) (const tloc)
+-- | Set an objects location in the state map regardless of what is there
+-- setOLoc :: Double -> Double -> String -> Sem ()
+setOLoc :: (Ord k, MonadState (Map k Obj) m) => Double -> Double -> k -> m ()
+setOLoc x_ y_ = modify . adjust (oPos .~ Just (Loc' x_ y_))
 
--- -- | set the location in the context of the comm monad
--- setL :: (Double,Double) -> (Double,Double) -> Sem Comp -> Sem ()
--- setL froms tos = fmap (fmap setML froms) tos
+mkMphAt :: String ->
+  String ->
+  String ->
+  (Double,Double) ->
+  (Double,Double) -> Sem Morph
+mkMphAt frm lbl to_ frmCoord toCoord = do m <- mkMph frm lbl to_
+                                          setMLoc frmCoord toCoord m
+                                          return m
 
 -- | Set the position for a composed morphism
 setPos :: [((Double, Double), (Double, Double))] -> Comp -> Sem ()
-setPos cs xs = sequence_ [ uncurry setML c x_ | c <- cs, x_ <- xs ]
+setPos cs xs = sequence_ [ uncurry setMLoc c x_ | c <- cs, x_ <- xs ]
 
 underBy :: Double -> Sem Comp -> Sem Comp -> Sem Comp
 underBy d low high = low >>= return . mapM_ (transY d) >> low `merge` high

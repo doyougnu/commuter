@@ -43,9 +43,11 @@ default-extensions:
   - RecordWildCards
   - GeneralizedNewtypeDeriving
   - DeriveFunctor
+  - DeriveGeneric
   - DeriveTraversable
   - DeriveAnyClass
-  - DeriveGeneric
+  - MultiParamTypeClasses
+  - NamedFieldPuns
 
 library:
   source-dirs: src

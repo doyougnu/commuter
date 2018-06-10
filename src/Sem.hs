@@ -1,18 +1,31 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Sem where
 
 import Diagrams.Backend.PGF.CmdLine
-import Diagrams.Prelude hiding ((<>), tri, under)
+import Diagrams.Prelude hiding ((<>), tri, under,adjust,at,trace)
 
 import Data.Monoid                    ((<>))
+import Data.List                      ((\\),sort)
 import Data.Maybe                     (fromJust, isNothing)
-import Data.Map                       ((!))
-import Control.Monad.State            (runState)
+import Data.Map                       (keys, (!),adjust)
+import Control.Monad.State            (execState, runState, State, modify, get)
 import Control.Monad.Except           (runExceptT)
 
 import Internal.Types
 import Internal.Core
 import Internal.Position
+import Debug.Trace (trace)
 
+data TagData = TagData { _xPos :: Double
+                       , _yPos :: Double
+                       , _posMap :: PosMap
+                       , _incX :: Double
+                       , _incY :: Double
+                       }
+
+type TagState = State TagData
+
+makeLenses ''TagData
 -- | The semantic function for Graphviz has the semantic domain of strings
 -- type SemGraphViz n m l = Graph n m l -> String
 
@@ -61,34 +74,38 @@ _arrow Morph{..} =
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
 f' :: Sem Morph
-f' = mkMph "A" "f" ("B")
+f' = mkMph "A" "f" "B"
 
 g' :: Sem Morph
 g' = mkMph "B" "g" "C"
 
+h' :: Sem Morph
+h' = mkMph "A" "h" "C"
+
 f :: Sem Morph
 f = do m <- mkMph "A" "f" "B"
-       setML (0,0) (2,0) m
+       setMLoc (0,0) (2,0) m
        return m
 
 g :: Sem Morph
 g = do m <- mkMph "B" "g" "C"
-       setML (2,0) (2,-2) m
+       setMLoc (2,0) (2,-2) m
        return m
 
 h :: Sem Morph
 h = do m <- mkMph "A" "h" "C"
-       setML (0,0) (2,-4) m
+       setOLoc 0 0 "A"
+       setOLoc 2 (-2) "C"
        return m
 
 i :: Sem Morph
-i = mkMph ("A'") "i" ("C")
+i = mkMphAt "A'" "i" "C" (4,0) (2,-2)
 
 j :: Sem Morph
-j = mkMph ("A'") "j" ("B")
+j = mkMphAt ("A'") "j" ("B") (0,0) (2,0)
 
 t1 :: Sem Equ
-t1 = tri (g >>= liftToComp) (f >>= liftToComp) (h >>= liftToComp)
+t1 = tri (g' >>= liftToComp) (f' >>= liftToComp) (h' >>= liftToComp)
 
 t2 :: Sem Equ
 t2 = tri (g >>= liftToComp) (j >>= liftToComp) (i >>= liftToComp)
@@ -112,13 +129,65 @@ sem' m objs = (_node fromObj <> _node toObj) # _arrow m
         fromObj = objs ! from_
         toObj   = objs ! to_
 
--- sem :: Sem Equ -> QDiagram B V2 Double Any
--- sem (Left err) = error . show $ err
--- sem (Right ms) = foldMap (foldMap sem') ms
-
 sem :: Sem Equ -> QDiagram B V2 Double Any
-sem = sem'' . flip runState emptySt . runExceptT
+sem = sem'' . tagLocations . validateObjs . flip runState emptySt . runExceptT
 
 sem'' :: (Either ErrMsg Equ, PosMap) -> QDiagram B V2 Double Any
 sem'' (Left err, _) = error . show $ err
 sem'' (Right ms, objs) = foldMap (foldMap $ flip sem' objs) ms
+
+validateObjs :: (Either ErrMsg Equ, PosMap) -> (Either ErrMsg Equ, PosMap)
+validateObjs a@(Right ms, objs) | null $ objectNamesE ms \\ keys objs = a
+                                | otherwise = (Left . NoObj $ "Object names did not match internal state names, here is the necessary info: " ++ (show $ objectNamesE ms) ++ show objs , objs)
+validateObjs a@(Left   _,_) = a
+
+tagLocations :: (Either ErrMsg Equ, PosMap) -> (Either ErrMsg Equ, PosMap)
+tagLocations a@(Left _,_) = a
+tagLocations (Right ms, objs) = trace (show newMap ++ "\n Before: \n" ++ show objs ++ " order: \n" ++ show (map sort ms))
+                                $ (Right ms , newMap)
+  where emptyTagSt = TagData {_xPos=0,_yPos=0,_posMap=objs,_incX=2,_incY=(-2)}
+        newMap = _posMap $ execState (tagEqu (map sort ms)) emptyTagSt
+
+tagObj :: String -> TagState ()
+tagObj s = do TagData{..} <- get
+              setOLocConst _xPos _yPos s
+
+tagMorph :: Morph -> TagState ()
+tagMorph m = do TagData{..} <- get
+                trace ("Setting: " ++ show m) $ tagObj (_mFrom m)
+                tagObj (_mTo m)
+
+incX_ :: TagState ()
+incX_ = do TagData{..} <- get
+           modify $ xPos %~ (+_incX)
+
+incY_ :: TagState ()
+incY_ = do TagData{..} <- get
+           modify $ yPos %~ (+_incY)
+
+tagComp :: Comp -> TagState ()
+tagComp = mapM_ tagMorph
+
+tagAndIncY :: Comp -> TagState ()
+tagAndIncY cs = do tagComp cs
+                   TagData{..} <- get
+                   forceSetPos _xPos _yPos rng
+                   incY_
+  where rng = _mTo . head $ cs
+
+tagEqu :: Equ -> TagState ()
+tagEqu = mapM_ tagAndIncY
+
+-- | Set an object's location in the state map if and only if it is not already
+-- set
+setOLocConst :: Double -> Double -> String -> TagState ()
+setOLocConst x_ y_ obj =
+  do TagData{..} <- get
+     if isNothing . _oPos $ _posMap ! obj
+       then trace ("Setting: " ++ obj ++ " to " ++ show x_ ++ " : " ++ show y_)
+            $ forceSetPos x_ y_ obj >> incX_
+       else return ()
+
+-- | Special set the range of a morph. This is an special case for equivalences
+forceSetPos :: Double -> Double -> String -> TagState ()
+forceSetPos x_ y_ o = modify (posMap %~ (adjust (oPos .~ Just (Loc' x_ y_)) o))
