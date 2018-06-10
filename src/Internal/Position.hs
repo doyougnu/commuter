@@ -77,7 +77,6 @@ setMLoc :: (Double,Double) -> (Double,Double) -> Morph -> Sem ()
 setMLoc fcs tcs = overLoc_ (uncurry setXY fcs) (uncurry setXY tcs)
 
 -- | Set an objects location in the state map regardless of what is there
--- setOLoc :: Double -> Double -> String -> Sem ()
 setOLoc :: (Ord k, MonadState (Map k Obj) m) => Double -> Double -> k -> m ()
 setOLoc x_ y_ = modify . adjust (oPos .~ Just (Loc' x_ y_))
 

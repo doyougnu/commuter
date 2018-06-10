@@ -2,19 +2,18 @@
 module Sem where
 
 import Diagrams.Backend.PGF.CmdLine
-import Diagrams.Prelude hiding ((<>), tri, under,adjust,at,trace)
+import Diagrams.Prelude hiding ((<>), tri, under,adjust,at,trace,_x,_y)
 
 import Data.Monoid                    ((<>))
 import Data.List                      ((\\),sort)
-import Data.Maybe                     (fromJust, isNothing)
-import Data.Map                       (keys, (!),adjust)
+import Data.Maybe                     (catMaybes, fromJust, isNothing)
+import Data.Map                       (elems, keys, (!),adjust)
 import Control.Monad.State            (execState, runState, State, modify, get)
 import Control.Monad.Except           (runExceptT)
 
 import Internal.Types
 import Internal.Core
 import Internal.Position
-import Debug.Trace (trace)
 
 data TagData = TagData { _xPos :: Double
                        , _yPos :: Double
@@ -84,7 +83,9 @@ h' = mkMph "A" "h" "C"
 
 f :: Sem Morph
 f = do m <- mkMph "A" "f" "B"
-       setMLoc (0,0) (2,0) m
+       -- setMLoc (10,0) (12,0) m
+       setOLoc 10 0 "A"
+       setOLoc 12 0 "B"
        return m
 
 g :: Sem Morph
@@ -105,7 +106,7 @@ j :: Sem Morph
 j = mkMphAt ("A'") "j" ("B") (0,0) (2,0)
 
 t1 :: Sem Equ
-t1 = tri (g' >>= liftToComp) (f' >>= liftToComp) (h' >>= liftToComp)
+t1 = tri (g' >>= liftToComp) (f' >>= liftToComp) (h >>= liftToComp)
 
 t2 :: Sem Equ
 t2 = tri (g >>= liftToComp) (j >>= liftToComp) (i >>= liftToComp)
@@ -143,10 +144,14 @@ validateObjs a@(Left   _,_) = a
 
 tagLocations :: (Either ErrMsg Equ, PosMap) -> (Either ErrMsg Equ, PosMap)
 tagLocations a@(Left _,_) = a
-tagLocations (Right ms, objs) = trace (show newMap ++ "\n Before: \n" ++ show objs ++ " order: \n" ++ show (map sort ms))
-                                $ (Right ms , newMap)
-  where emptyTagSt = TagData {_xPos=0,_yPos=0,_posMap=objs,_incX=2,_incY=(-2)}
+tagLocations (Right ms, objs) = (Right ms , newMap)
+  where emptyTagSt = TagData {_xPos=maxX,_yPos=maxY,_posMap=objs,_incX=2,_incY=(-2)}
         newMap = _posMap $ execState (tagEqu (map sort ms)) emptyTagSt
+        positions = catMaybes $ _oPos <$> elems objs
+        maxX | null positions = 0
+             | otherwise = maximum . fmap _x $ positions
+        maxY | null positions = 0
+             | otherwise = maximum . fmap _y $ positions
 
 tagObj :: String -> TagState ()
 tagObj s = do TagData{..} <- get
@@ -154,7 +159,7 @@ tagObj s = do TagData{..} <- get
 
 tagMorph :: Morph -> TagState ()
 tagMorph m = do TagData{..} <- get
-                trace ("Setting: " ++ show m) $ tagObj (_mFrom m)
+                tagObj (_mFrom m)
                 tagObj (_mTo m)
 
 incX_ :: TagState ()
@@ -169,11 +174,7 @@ tagComp :: Comp -> TagState ()
 tagComp = mapM_ tagMorph
 
 tagAndIncY :: Comp -> TagState ()
-tagAndIncY cs = do tagComp cs
-                   TagData{..} <- get
-                   forceSetPos _xPos _yPos rng
-                   incY_
-  where rng = _mTo . head $ cs
+tagAndIncY cs = tagComp cs >> incY_
 
 tagEqu :: Equ -> TagState ()
 tagEqu = mapM_ tagAndIncY
@@ -184,8 +185,7 @@ setOLocConst :: Double -> Double -> String -> TagState ()
 setOLocConst x_ y_ obj =
   do TagData{..} <- get
      if isNothing . _oPos $ _posMap ! obj
-       then trace ("Setting: " ++ obj ++ " to " ++ show x_ ++ " : " ++ show y_)
-            $ forceSetPos x_ y_ obj >> incX_
+       then forceSetPos x_ y_ obj >> incX_
        else return ()
 
 -- | Special set the range of a morph. This is an special case for equivalences
