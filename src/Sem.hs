@@ -102,16 +102,18 @@ i = mkMph "A'" "i" "B'"
 j :: Sem Morph
 j = mkMph ("B'") "j" ("C'")
 
-t1 :: Sem Equ
-t1 = tri g' f' (h >>= liftToComp)
+-- t1 :: Sem Comp
+-- t1 = tri f g h
 
-t2 :: Sem Equ
-t2 = sqr f' g' h' f
+-- t2 :: Sem Equ
+-- t2 = sqr f' g' h' f
 
-t3 :: Sem Comp
-t3 = do h <- mkMph "C" "h" "C'"
-        i <- mkMph "C" "h" "C'"
-        h |.| i
+-- t3 :: Sem Comp
+-- t3 = do h <- mkMph "C" "h" "C'"
+--         i <- mkMph "C" "h" "C'"
+--         j <- mkMph "C" "h" "C'"
+--         j' <- mkMph "C" "h" "C'"
+--         j' |.| j |.| h |.| i
 
 -- t4 :: Sem Equ
 -- t4 = (h |.| j) |==| i
@@ -135,8 +137,8 @@ sem' m objs = (_node fromObj <> _node toObj) # _arrow m
         fromObj = objs ! from_
         toObj   = objs ! to_
 
-sem :: Sem Equ -> QDiagram B V2 Double Any
-sem = sem'' . tagLocations . validateObjs . flip runState emptySt . runExceptT
+sem_ :: Sem Equ -> QDiagram B V2 Double Any
+sem_ = sem'' . tagLocations . validateObjs . flip runState emptySt . runExceptT
 
 sem'' :: (Either ErrMsg Equ, PosMap) -> QDiagram B V2 Double Any
 sem'' (Left err, _) = error . show $ err

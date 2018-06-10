@@ -89,6 +89,11 @@ mkMphAt frm lbl to_ frmCoord toCoord = do m <- mkMph frm lbl to_
                                           setMLoc frmCoord toCoord m
                                           return m
 
+mkObjAt :: String -> (Double,Double) -> Sem String
+mkObjAt o a= do o' <- mkObj o
+                _ <- uncurry setOLoc a o'
+                return o'
+
 -- | Set the position for a composed morphism
 setPos :: [((Double, Double), (Double, Double))] -> Comp -> Sem ()
 setPos cs xs = sequence_ [ uncurry setMLoc c x_ | c <- cs, x_ <- xs ]

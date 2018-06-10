@@ -8,9 +8,11 @@ module Internal.Types ( module Data.Map
                       , Err(..)
                       , ErrMsg
                       , Comp
+                      , Custom
                       , Equ
                       , PosMap
                       , Sem
+                      , Type(..)
                       , Composable(..)
                       , Equatable(..)) where
 
@@ -41,6 +43,7 @@ data Type = Homo
           | Mono
           | Epi
           | Bij
+          | Unique
           deriving (Eq,Show,Ord)
 
 data Err a = MisMatch a

@@ -4,7 +4,7 @@ module Internal.Core where
 import Control.Lens
 import Control.Monad.Except (throwError, runExceptT, catchError)
 import Control.Monad        (liftM, liftM2)
-import Control.Monad.State  (evalState, modify,get,put)
+import Control.Monad.State  (evalState, modify,get)
 import Control.Applicative  ((<|>))
 import Data.List            (sort,nub)
 import Data.Map hiding      (null)
@@ -19,8 +19,10 @@ makeLenses ''Morph
 makeLenses ''Morph2
 
 -- | Given a name create an object with that string as its name
-mkObj :: String -> Obj
-mkObj s = def & name.~ s
+mkObj :: String -> Sem String
+mkObj s = do let o = def & name.~ s
+             insertObj o
+             return s
 
 -- | Smart constructors
 mkMph' :: String -> String -> String -> Morph
@@ -37,13 +39,24 @@ mkMph :: String -> String -> String -> Sem Morph
 mkMph frm lbl to_
   | null frm || null to_ || null lbl = throwError handler
   | otherwise = do let m = mkMph' frm lbl to_
-                   insertObj $ mkObj frm
-                   insertObj $ mkObj to_
+                   _ <- mkObj frm
+                   _ <- mkObj to_
                    return m
   where
     handler :: ErrMsg
     handler = NoObj $ "Object names cannot be empty: "
               ++ show (mkMph' frm lbl to_)
+
+coM :: Morph -> Morph
+coM m = m & mFrom .~ to_ & mTo .~ frm
+  where frm = _mFrom m
+        to_ = _mTo m
+
+coComp :: Comp -> Comp
+coComp = fmap coM
+
+coEqu :: Equ -> Equ
+coEqu = fmap coComp
 
 -- | get the object names out of a morph
 objectNamesM :: Morph -> [String]
@@ -60,6 +73,10 @@ objectNamesE = nub . concatMap objectNamesC
 -- | Insert an object into the state
 insertObj :: Obj -> Sem ()
 insertObj o = modify $ insert (_name o) o
+
+getObj :: String -> Sem Obj
+getObj o = do {st <- get; return $ st ! o} `catchError` handler
+  where handler _ = throwError . NoObj $ "Object: " ++ o ++ " does not exist!"
 
 -- | Build a Location given two doubles
 setXY :: Double -> Double -> Loc -> Loc
@@ -133,18 +150,20 @@ fs |..| gs = [fs',gs]
 instance Composable (Sem Morph) (Sem Morph) (Sem Comp) where
   a |.| b = do a' <- a
                b' <- b
-               a' |.| b'
+               a' `compM` b'
 
-instance Composable Morph (Sem Comp) (Sem Comp) where a |.| b = liftToComp a |.| b
-instance Composable (Sem Comp) Morph (Sem Comp) where a |.| b = a |.| liftToComp b
-instance Composable (Sem Morph) (Sem Comp) (Sem Comp) where
-  a |.| b = do a' <- a
-               a' |.| b
-instance Composable (Sem Comp) Comp (Sem Comp) where
-  a |.| b = a |.| (return b :: Sem Comp)
-instance Composable Comp (Sem Comp) (Sem Comp) where
-  a |.| b = (return a :: Sem Comp) |.| b
-instance Composable Morph Morph (Sem Comp) where (|.|) = compM
+-- instance Composable Morph (Sem Comp) (Sem Comp) where a |.| b = liftToComp a `comp` b
+-- instance Composable (Sem Comp) Morph (Sem Comp) where a |.| b = a |.| liftToComp b
+-- instance Composable (Sem Morph) (Sem Comp) (Sem Comp) where
+--   a |.| b = do a' <- a
+--                (liftToComp a') |.| b
+-- instance Composable (Sem Comp) (Sem Morph) (Sem Comp) where
+--   a |.| b = do b' <- b
+--                a |.| (liftToComp b')
+instance Composable Comp Comp (Sem Comp) where (|.|)  = comp'
+-- instance Composable Comp (Sem Comp) (Sem Comp) where
+--   a |.| b = (return a :: Sem Comp) |.| b
+-- instance Composable Morph Morph (Sem Comp) where (|.|) = compM
 
 compM :: Morph -> Morph -> Sem Comp
 f `compM` g | fD == gR = return [f,g]
@@ -155,8 +174,19 @@ f `compM` g | fD == gR = return [f,g]
               ++ " does not match the domain of " ++ show f
 
 -- | Smart constructor that will type check the morphisms domain and codomain
-instance Composable (Sem Comp) (Sem Comp) (Sem Comp) where (|.|) = comp
+-- instance Composable Comp Comp (Sem Comp) where (|.|) = comp'
 
+comp' :: Comp -> Comp -> Sem Comp
+fs `comp'` gs = do rngGs <- range gs
+                   dmnFs <- domain fs
+                   if rngGs == dmnFs
+                     then return $ fs ++ gs
+                     else handler
+  where
+    err = "The range of " ++ show gs ++ " does not match the domain of " ++ show fs
+    handler = throwError $ MisMatch err
+
+instance Composable (Sem Comp) (Sem Comp) (Sem Comp) where (|.|) = comp
 comp :: Sem Comp -> Sem Comp -> Sem Comp
 fs `comp` gs = do rngGs <- gs >>= range
                   dmnFs <- fs >>= domain
@@ -204,12 +234,14 @@ lhs `eq'` rhs = do lhsR <- lhs >>= range
                  throwError $ MisMatch err
 
 -- | A triangle shape
+tri :: (Composable a2 b2 a1, Equatable a1 b1) => a2 -> b2 -> a1 -> b1
 tri f g h = (f |.| g) |==| h
 
 -- | a square shape
 -- sqr :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
 -- sqr :: (Composable b (Sem Comp), Composable a (Sem Comp)) =>
 --   a -> a -> b -> b -> Sem Equ
+sqr :: (Composable a2 b2 (Sem Comp), Composable a1 b1 (Sem Comp)) => a1 -> b1 -> a2 -> b2 -> Sem Equ
 sqr f g h i = f |.| g |=| h |.| i
 
 -- [[g,f], [i,h]] [[l,g],[k,j]] ==> [[k,j,f],[l,g,f],[l,i,h]]
@@ -221,10 +253,10 @@ merge' lhs []  = return lhs
 merge' []  rhs = return rhs
 merge' lhs rhs = foldr1 ((<|>)) $ left ++ right
   where left = do l <- lhs
-                  let l' = liftToComp l
+                  let l' = [l]
                   return $ (l' |.| rhs) <|> (rhs |.| l')
         right = do r <- rhs
-                   let r' = liftToComp r
+                   let r' = [r]
                    return $ (r' |.| lhs) <|> (lhs |.| r')
 
 merge :: Sem Comp -> Sem Comp -> Sem Comp
@@ -300,3 +332,6 @@ debugE = debugMaker go
   where
     go (Right a) = debugE' a
     go (Left err) = show err
+
+customize :: String -> Custom Obj -> Sem ()
+customize o f = modify (adjust (customizations %~ (:) f) o)
