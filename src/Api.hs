@@ -78,9 +78,8 @@ arrowAt f l t fc tc = do a <- arrow f l t
                          return a
 
 connectWithLabels :: [String] -> Comp -> Comp -> Sem Comp
-connectWithLabels ls os us = trace (show oObjects ++ "\n" ++ show uObjects) $
-  do newMs' <- newMs
-     (newMs') `merge'` (os) ` merge` (us `merge'` newMs')
+connectWithLabels ls os us = do newMs' <- newMs
+                                (newMs') `merge'` (os) ` merge` (us `merge'` newMs')
   where
     oObjects = objectNamesC os
     uObjects = objectNamesC us
@@ -99,22 +98,22 @@ intersperseWithLabels flabs os = zipWithM3 mkMph os flabs os'
 sem :: Sem Equ -> QDiagram B V2 Double Any
 sem = sem_
 
-coords :: Double -> Double -> Double -> [(Double, Double)]
-coords xs ys z = zip [xs,(xs+z)..] [ys,(ys+z)..]
+coordsX :: Double -> Double -> Double -> [(Double, Double)]
+coordsX xs ys z = zip [xs,(xs+z)..] $ repeat 0
 
-offset :: (Double,Double) -> (Double,Double) -> Sem Comp -> Sem ()
-offset frms tos cmp = cmp >>= transC frms tos
+offset :: (Double,Double) -> (Double,Double) -> Comp -> Sem ()
+offset = transC
 
-lower :: Double -> Sem Comp -> Sem ()
+lower :: Double -> Comp -> Sem ()
 lower a = offset (0,-a) (0,-a)
 
-raise :: Double -> Sem Comp -> Sem ()
+raise :: Double -> Comp -> Sem ()
 raise a = offset (0,a) (0,a)
 
-right :: Double -> Sem Comp -> Sem ()
+right :: Double -> Comp -> Sem ()
 right a = offset (a,0) (a,0)
 
-left :: Double -> Sem Comp -> Sem ()
+left :: Double -> Comp -> Sem ()
 left a = offset (-a,0) (-a,0)
 
 labelsBy :: (String -> String) -> Char -> [String]

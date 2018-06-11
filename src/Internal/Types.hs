@@ -111,8 +111,7 @@ instance Default Morph where
                , _mfsize = 0.22
                }
 
-instance Default Morph2
-instance (Default a, Default b) => Default (Loc' a b) where def = Loc' def def
+instance Default (Loc' Double Double) where def = Loc' 0 0
 instance Show Obj where show Obj{..} = show _name ++ show _oPos
 
 instance Show Morph where

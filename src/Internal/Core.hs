@@ -31,16 +31,17 @@ mkMph' f lbl t = def
                 & mLabel .~ lbl
                 & mTo    .~ t
 
-mkMph2 :: String -> Morph -> Morph2
-mkMph2 lbl t = def & m2Label .~ lbl
-                   & m2To    .~ t
+-- mkMph2 :: String -> Morph -> Morph2
+-- mkMph2 lbl t = def & m2Label .~ lbl
+--                    & m2To    .~ t
 
 mkMph :: String -> String -> String -> Sem Morph
 mkMph frm lbl to_
   | null frm || null to_ || null lbl = throwError handler
-  | otherwise = do let m = mkMph' frm lbl to_
-                   _ <- mkObj frm
-                   _ <- mkObj to_
+  | otherwise = do os <- get
+                   frm' <- if member frm os then return frm else mkObj frm
+                   to'  <- if member to_ os then return to_ else mkObj to_
+                   let m = mkMph' frm' lbl to'
                    return m
   where
     handler :: ErrMsg

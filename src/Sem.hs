@@ -138,7 +138,7 @@ sem' m objs = (_node fromObj <> _node toObj) # _arrow m
         toObj   = objs ! to_
 
 sem_ :: Sem Equ -> QDiagram B V2 Double Any
-sem_ = sem'' . tagLocations . validateObjs . flip runState emptySt . runExceptT
+sem_ = sem'' . flip runState emptySt . runExceptT
 
 sem'' :: (Either ErrMsg Equ, PosMap) -> QDiagram B V2 Double Any
 sem'' (Left err, _) = error . show $ err
