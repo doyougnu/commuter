@@ -4,7 +4,6 @@ module Api ( module Internal.Types
            , module Custom
            , module Control.Lens
            , module Sem
-           , module Diagrams.Prelude
            , obj
            , objAt
            , objects
@@ -54,6 +53,7 @@ import Custom
 import Sem
 
 import Debug.Trace(trace)
+import Internal.Debug
 
 obj :: String -> Sem String
 obj = mkObj

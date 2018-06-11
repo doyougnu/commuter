@@ -10,6 +10,8 @@ import Data.Maybe                     (catMaybes, fromJust, isNothing)
 import Data.Map                       (elems, keys, (!),adjust)
 import Control.Monad.State            (execState, runState, State, modify, get)
 import Control.Monad.Except           (runExceptT)
+import Debug.Trace (trace)
+
 
 import Internal.Types
 import Internal.Core hiding (map, foldr)
@@ -24,26 +26,8 @@ data TagData = TagData { _xPos :: Double
 
 type TagState = State TagData
 
+
 makeLenses ''TagData
--- | The semantic function for Graphviz has the semantic domain of strings
--- type SemGraphViz n m l = Graph n m l -> String
-
--- toGraphVizNode :: Show a => a -> String
--- toGraphVizNode n = show n ++ "[label = " ++ show n ++  "];\n"
-
--- toGraphVizEdge :: (Show a, Show b, Show c) => (a, [(b, c)]) -> String
--- toGraphVizEdge (frm, xs) = helper xs
---   where helper [] = "\n"
---         helper ((lbl, to):ys) =
---           show frm ++ " -> " ++ show to ++
---           "[label = \"" ++ show lbl ++ "\"];\n" ++ helper ys
-
-
--- toGraphViz :: (Show l, Show n) => String -> SemGraphViz n m l
--- toGraphViz name (G (n, _)) =
---   "digraph " ++ name ++ "{\n" ++
---   "rankdir=LR2;\n" ++ concatMap toGraphVizNode (keys n)
---   ++ concatMap toGraphVizEdge (assocs n) ++ "}\n"
 
 arrLoc :: (Fractional a, Additive v) => Subdiagram b1 v a m1 -> Subdiagram b2 v a m2 -> Point v a
 arrLoc (location -> _p1) (location -> _p2) = _p1 .+^ vec
@@ -65,11 +49,22 @@ _node a@Obj{..} = __node b
   where b = foldr ($) a _customizations
 
 -- _arrow :: Morph' -> Diagram B
-_arrow Morph{..} =
+-- | this type purposefully left as open as possible. Trust me.
+arrowSem Morph{..} =
   withName (_mFrom) $ \b1 ->
   withName (_mTo) $ \b2 ->
-  atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
-        <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfSize)
+  atop (arrowBetween' (with
+                       & headGap .~ large
+                       & arrowHead .~ spike
+                       & tailGap .~ large
+                       & shaftStyle %~ dashingG [0.04, 0.02] 0)
+         (location b1) (location b2) <> alignedText 0 1 _mLabel
+         # moveTo (arrLoc b1 b2) # fontSizeL _mfSize)
+  where fmat (Unique:_) = dashingG [0.04, 0.02] 0
+        fmat _ = id
+
+_arrow a@Morph{..} = arrowSem b
+  where b = foldr ($) a _mCustomizations
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
 -- f' :: Sem Morph

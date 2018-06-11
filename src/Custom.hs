@@ -29,8 +29,14 @@ customizeM f = mCustomizations %~ (:) f
 setLabelSizeO :: String -> Double -> Sem ()
 setLabelSizeO s = customize s . set fSize
 
-setLabelSizeM :: Double -> Custom Morph
-setLabelSizeM = customizeM . set mfSize
+setObjectLabelSize :: [String] -> [Double] -> Sem ()
+setObjectLabelSize = (sequence_ .) . zipWith setLabelSizeO
 
-setLabelSizeC :: Double -> Custom Comp
-setLabelSizeC = fmap . setLabelSizeM
+setFLabelSizeM :: Double -> Custom Morph
+setFLabelSizeM = customizeM . set mfSize
+
+setFLabelSizeC :: Double -> Custom Comp
+setFLabelSizeC = fmap . setFLabelSizeM
+
+setFLabelSizeE :: Double -> Custom Equ
+setFLabelSizeE = fmap . setFLabelSizeC

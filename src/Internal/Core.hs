@@ -20,6 +20,7 @@ module Internal.Core ( module Control.Lens
                      , mCustomizations
                      , mkObj
                      , mkMph
+                     , mkMph'
                      , coM
                      , coComp
                      , coEqu
