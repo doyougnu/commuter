@@ -10,22 +10,17 @@ module Main where
 --   But I think some │ │ | major redesign might have to happen first. Arrows
 --   are complicated.
 
-import Data.Map (empty)
-import Diagrams.Prelude hiding (from, to)
+import Diagrams.Prelude hiding (from, to, E)
 import Diagrams.Backend.PGF.CmdLine
-import Graphics.SVGFonts
-
-import Data.Typeable (Typeable)
-import Data.Maybe (isJust)
 import Data.Text(Text)
 
-import Comm
-import Sem
+import Examples
+import Api
 
 
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
 instance IsName Text
 
 main :: IO ()
-main = mainWith $ toDiagrams five empty empty # pad 3
+main = mainWith $ sem five_lemma # pad 3
 -- main = mainWith $ allRDs

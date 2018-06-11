@@ -22,10 +22,11 @@ description:         Please see the README on Github at <https://github.com/doyo
 dependencies:
 - base >= 4.7 && < 5
 - text
+- monadlist
 - containers
 - mtl
 - lens
-- bifunctors
+- data-default-class
 - diagrams
 - diagrams-lib
 - diagrams-contrib
@@ -40,8 +41,17 @@ default-extensions:
   - NoMonomorphismRestriction
   - OverloadedStrings
   - ViewPatterns
+  - RecordWildCards
   - GeneralizedNewtypeDeriving
-  - GADTs
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DeriveAnyClass
+  - MultiParamTypeClasses
+  - NamedFieldPuns
+  - TypeSynonymInstances
+  - FlexibleInstances
+  - FunctionalDependencies
 
 library:
   source-dirs: src

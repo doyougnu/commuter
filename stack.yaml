@@ -18,7 +18,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: lts-11.6
+resolver: lts-11.12
 allow-newer: true
 
 # User packages to be built.
@@ -53,6 +53,7 @@ extra-deps:
 - fast-math-1.0.2
 - SVGFonts-1.6.0.3
 - texrunner-0.0.1.1
+- monadlist-0.0.2
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
