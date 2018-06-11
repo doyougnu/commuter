@@ -42,6 +42,8 @@ import Internal.Position
 import Custom
 import Sem
 
+import Debug.Trace(trace)
+
 obj :: String -> Sem String
 obj = mkObj
 
@@ -75,16 +77,18 @@ arrowAt f l t fc tc = do a <- arrow f l t
                          _ <- setMLoc fc tc a
                          return a
 
-connectWithLabels :: [String] -> Comp -> Comp -> Sem Equ
-connectWithLabels ls os us = newMs `mergeE` ((pure os) `mergeE'` (pure us))
+connectWithLabels :: [String] -> Comp -> Comp -> Sem Comp
+connectWithLabels ls os us = trace (show oObjects ++ "\n" ++ show uObjects) $
+  do newMs' <- newMs
+     (newMs') `merge'` (os) ` merge` (us `merge'` newMs')
   where
     oObjects = objectNamesC os
     uObjects = objectNamesC us
-    newMs = zipWithM3 mkMph ls oObjects uObjects >>= return . pure
+    newMs = zipWithM3 mkMph oObjects ls uObjects
 
 intersperseWithLabels :: [String] -> [String] -> Sem Comp
 intersperseWithLabels flabs os = zipWithM3 mkMph os flabs os'
-  where os' = tail os ++ [head os]
+  where os' = tail os
 
 -- | Run Like:
 -- run like stack exec -- commuter -w 400 -h 400 -o test.svg
@@ -106,7 +110,6 @@ lower a = offset (0,-a) (0,-a)
 
 raise :: Double -> Sem Comp -> Sem ()
 raise a = offset (0,a) (0,a)
-
 
 right :: Double -> Sem Comp -> Sem ()
 right a = offset (a,0) (a,0)

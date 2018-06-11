@@ -9,4 +9,4 @@ five_lemma = do objs <- objectsAt (objectLabels 'a' 'e') (coords 0 0 2)
                 ms <- intersperseWithLabels (labels 'f') objs
                 pos <- mapM prime objs
                 ms' <- intersperseWithLabels (labels 'r') pos
-                connectWithLabels (labels 'l') ms ms'
+                fmap pure $ connectWithLabels (labels 'l') ms ms'
