@@ -11,5 +11,5 @@ five_lemma = do objs <- objectsAt (objectLabels 'a' 'e') (coordsX 0 0 5)
                 pos <- mapM prime objs
                 ms' <- intersperseWithLabels (labels 'r') pos
                 lowerC 5 ms'
-                res <- connectWithLabels (labels 'l') ms ms' $ setLabelSizeM 0.1
+                res <- connectWithLabels (labels 'l') ms ms' $ setLabelSizeC 0.88
                 return res

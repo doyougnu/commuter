@@ -8,6 +8,7 @@ module Internal.Core ( module Control.Lens
                      , y
                      , x
                      , name
+                     , oPos
                      , customizations
                      , frozen
                      , fSize
@@ -60,12 +61,13 @@ module Internal.Core ( module Control.Lens
                      , sortE
                      , emptySt) where
 
-import Control.Lens
+
+import Control.Lens hiding  (under,AReview,(#))
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad        (liftM, liftM2)
 import Control.Monad.State  (modify, get)
 import Data.List            (sort,nub,tails)
-import Data.Map hiding      (null)
+import Data.Map hiding      (null, (\\))
 
 import Internal.Types
 

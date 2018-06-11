@@ -23,8 +23,14 @@ bijection = addType Bij
 customize :: String -> Custom Obj -> Sem ()
 customize o f = modify (adjust (customizations %~ (:) f) o)
 
-setLabelSizeO :: Double -> Custom Obj
-setLabelSizeO = set fSize
+customizeM :: (Morph -> Morph) -> Custom Morph
+customizeM f = mCustomizations %~ (:) f
+
+setLabelSizeO :: String -> Double -> Sem ()
+setLabelSizeO s = customize s . set fSize
 
 setLabelSizeM :: Double -> Custom Morph
-setLabelSizeM = set mfSize
+setLabelSizeM = customizeM . set mfSize
+
+setLabelSizeC :: Double -> Custom Comp
+setLabelSizeC = fmap . setLabelSizeM

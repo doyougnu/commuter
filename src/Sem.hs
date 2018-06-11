@@ -2,17 +2,17 @@
 module Sem where
 
 import Diagrams.Backend.PGF.CmdLine
-import Diagrams.Prelude hiding ((<>), tri, under,adjust,at,trace,_x,_y)
+import Diagrams.Prelude hiding ((<>), tri, under,adjust,at,trace,_x,_y,map)
 
 import Data.Monoid                    ((<>))
-import Data.List                      ((\\),sort)
+import Data.List                      (sort,(\\))
 import Data.Maybe                     (catMaybes, fromJust, isNothing)
 import Data.Map                       (elems, keys, (!),adjust)
 import Control.Monad.State            (execState, runState, State, modify, get)
 import Control.Monad.Except           (runExceptT)
 
 import Internal.Types
-import Internal.Core
+import Internal.Core hiding (map, foldr)
 import Internal.Position
 
 data TagData = TagData { _xPos :: Double
@@ -69,7 +69,7 @@ _arrow Morph{..} =
   withName (_mFrom) $ \b1 ->
   withName (_mTo) $ \b2 ->
   atop (arrowBetween' (with & headGap .~ large & tailGap .~ large) (location b1) (location b2)
-        <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
+        <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfSize)
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
 -- f' :: Sem Morph
@@ -131,11 +131,11 @@ _arrow Morph{..} =
 --   return $ t |==| r
 
 sem' :: Morph -> PosMap -> Diagram B
-sem' m objs = (_node fromObj <> _node toObj) # _arrow m
+sem' m objs = (_node fromObj_ <> _node toObj_) # _arrow m
   where from_ = _mFrom m
         to_   = _mTo m
-        fromObj = objs ! from_
-        toObj   = objs ! to_
+        fromObj_ = objs ! from_
+        toObj_   = objs ! to_
 
 sem_ :: Sem Equ -> QDiagram B V2 Double Any
 sem_ = sem'' . flip runState emptySt . runExceptT
