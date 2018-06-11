@@ -66,7 +66,7 @@ data Morph = Morph { _mFrom  ::  String                   -- ^ The object that o
                    , _mTo    :: String                  -- ^ The object the arrow points to
                    -- , _mPos   :: Loc                     -- ^ Position of the arrow
                    , _types  :: [Type]                  -- ^ The type of the arrow
-                   , _mfsize :: Double                  -- ^ font size for the arrow label
+                   , _mfSize :: Double                  -- ^ font size for the arrow label
                    , _mCustomizations :: [Custom Morph] -- ^ Any customizations the user wants to apply
                    } deriving (Generic)
 
@@ -108,7 +108,7 @@ instance Default Morph where
                -- , _mPos = def
                , _types = []
                , _mCustomizations = []
-               , _mfsize = 0.22
+               , _mfSize = 0.22
                }
 
 instance Default (Loc' Double Double) where def = Loc' 0 0

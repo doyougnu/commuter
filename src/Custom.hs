@@ -5,17 +5,26 @@ import Control.Lens
 import Internal.Types
 import Internal.Core
 
-addCustom :: Type -> Morph -> Morph
-addCustom t m = m & types %~ ((:)t)
+addType :: Type -> Morph -> Morph
+addType t m = m & types %~ ((:)t)
 
 unique :: Morph -> Morph
-unique = addCustom Unique
+unique = addType Unique
 
 homo :: Morph -> Morph
-homo = addCustom Homo
+homo = addType Homo
 
 epi :: Morph -> Morph
-epi = addCustom Epi
+epi = addType Epi
 
 bijection :: Morph -> Morph
-bijection = addCustom Bij
+bijection = addType Bij
+
+customize :: String -> Custom Obj -> Sem ()
+customize o f = modify (adjust (customizations %~ (:) f) o)
+
+setLabelSizeO :: Double -> Custom Obj
+setLabelSizeO = set fSize
+
+setLabelSizeM :: Double -> Custom Morph
+setLabelSizeM = set mfSize

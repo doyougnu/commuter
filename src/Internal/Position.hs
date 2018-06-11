@@ -104,7 +104,7 @@ setPos :: [((Double, Double), (Double, Double))] -> Comp -> Sem ()
 setPos cs xs = sequence_ [ uncurry setMLoc c x_ | c <- cs, x_ <- xs ]
 
 underBy :: Double -> Sem Comp -> Sem Comp -> Sem Comp
-underBy d low high = low >>= return . mapM_ (transY d) >> low `merge` high
+underBy d low high = low >>= return . mapM_ (transY d) >> low |.| high
 
 under :: Sem Comp -> Sem Comp -> Sem Comp
 under = underBy 2

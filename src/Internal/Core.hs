@@ -1,22 +1,79 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Internal.Core where
+module Internal.Core ( module Control.Lens
+                     , module Control.Monad.Except
+                     , module Control.Monad
+                     , module Control.Monad.State
+                     , module Data.List
+                     , module Data.Map
+                     , y
+                     , x
+                     , name
+                     , customizations
+                     , frozen
+                     , fSize
+                     , mFrom
+                     , mLabel
+                     , mTo
+                     , types
+                     , mfSize
+                     , mCustomizations
+                     , mkObj
+                     , mkMph
+                     , coM
+                     , coComp
+                     , coEqu
+                     , bmap
+                     , objectNamesM
+                     , objectNamesC
+                     , objectNamesE
+                     , insertObj
+                     , getObj
+                     , setXY
+                     , toLoc
+                     , overLoc_
+                     , updateXY
+                     , overLocO_
+                     , domain
+                     , range
+                     , setDomain'
+                     , setRange'
+                     , setDomain
+                     , setRange
+                     , liftToComp
+                     , liftToEqu
+                     , Composable(..)
+                     , Equatable(..)
+                     , (|..|)
+                     , (|=|)
+                     , compM
+                     , comp'
+                     , comp''
+                     , tri
+                     , sqr
+                     , combinations
+                     , combinations_
+                     , merge'
+                     , merge
+                     , mergeE'
+                     , mergeE
+                     , sortE'
+                     , sortE
+                     , emptySt) where
 
 import Control.Lens
-import Control.Monad.Except (throwError, runExceptT, catchError)
+import Control.Monad.Except (throwError, catchError)
 import Control.Monad        (liftM, liftM2)
-import Control.Monad.State  (evalState, modify,get)
-import Control.Applicative  ((<|>))
+import Control.Monad.State  (modify, get)
 import Data.List            (sort,nub,tails)
 import Data.Map hiding      (null)
 
 import Internal.Types
 
-
 -- | now we derive lenses for this mess
 makeLenses ''Loc'
 makeLenses ''Obj
 makeLenses ''Morph
-makeLenses ''Morph2
+-- makeLenses ''Morph2
 
 -- | Given a name create an object with that string as its name
 mkObj :: String -> Sem String
@@ -187,16 +244,16 @@ f `compM` g | fD == gR = return [f,g]
 -- | Smart constructor that will type check the morphisms domain and codomain
 -- instance Composable Comp Comp (Sem Comp) where (|.|) = comp'
 
+-- | Compose two compositions with but track the error
 comp' :: Comp -> Comp -> Sem Comp
-fs `comp'` gs = do rngGs <- range gs
-                   dmnFs <- domain fs
-                   if rngGs == dmnFs
-                     then return $ fs ++ gs
-                     else handler
+fs `comp'` gs | null result = handler
+              | otherwise   = return result
   where
     err = "The range of " ++ show gs ++ " does not match the domain of " ++ show fs
     handler = throwError $ MisMatch err
+    result = fs `comp''` gs
 
+-- | compose two compositions with a check for composition
 comp'' :: Comp -> Comp -> Comp
 [] `comp''` gs = gs
 fs `comp''` [] = fs
@@ -209,15 +266,9 @@ fs `comp''` gs | range' gs == domain' fs = fs ++ gs
 
 instance Composable (Sem Comp) (Sem Comp) (Sem Comp) where (|.|) = comp
 comp :: Sem Comp -> Sem Comp -> Sem Comp
-fs `comp` gs = do rngGs <- gs >>= range
-                  dmnFs <- fs >>= domain
-                  if rngGs == dmnFs
-                    then (++) <$> fs <*> gs >>= return . nub
-                    else handler
-  where handler = do f <- fs
-                     g <- gs
-                     let err = "The range of " ++ show g ++ " does not match the domain of " ++ show f
-                     throwError $ MisMatch err
+fs `comp` gs = do f <- fs
+                  g <- gs
+                  f `comp'` g
 
 -- | smart constructor for :=:, prefers the rhs and sets the lhs's domain and
 -- codmain to that of the rhs
@@ -259,9 +310,6 @@ tri :: (Composable a2 b2 a1, Equatable a1 b1) => a2 -> b2 -> a1 -> b1
 tri f g h = (f |.| g) |==| h
 
 -- | a square shape
--- sqr :: Sem Comp -> Sem Comp -> Sem Comp -> Sem Comp -> Sem Equ
--- sqr :: (Composable b (Sem Comp), Composable a (Sem Comp)) =>
---   a -> a -> b -> b -> Sem Equ
 sqr :: (Composable a2 b2 (Sem Comp), Composable a1 b1 (Sem Comp)) => a1 -> b1 -> a2 -> b2 -> Sem Equ
 sqr f g h i = f |.| g |=| h |.| i
 
@@ -269,22 +317,24 @@ sqr f g h i = f |.| g |=| h |.| i
 
 -- [[g,f], [i,h]] [[k,j],[f,l]] ==> [[g,k,j],[g,f,l],[i,h,l]]
 
+-- | get all possible combinations for a list
 combinations :: [a] -> [[a]]
 combinations xs = concatMap (flip combinations_ xs) ys
   where
     s = length xs
     ys = [s,s-1..1]
 
+-- | Combinations engine, TODO move to utilities file
 combinations_ :: Int -> [a] -> [[a]]
 combinations_ 0 _ = [[]]
 combinations_ n xs = [ y:ys | y:xs' <- tails xs
                             , ys <- combinations_ (n-1) xs']
 
 -- | return a list of all legal compositions between two compositions
-merge'' :: Comp -> Comp -> Sem [Comp]
-merge'' lhs []  = return $ pure lhs
-merge'' []  rhs = return $ pure rhs
-merge'' lhs rhs = if null result
+merge' :: Comp -> Comp -> Sem [Comp]
+merge' lhs []  = return $ pure lhs
+merge' []  rhs = return $ pure rhs
+merge' lhs rhs = if null result
                   then throwError . MisMatch $ err
                   else return result
   where
@@ -298,18 +348,9 @@ merge'' lhs rhs = if null result
                             ]
     err = "Could not compose: " ++ show lhs ++ " with " ++ show rhs
 
-merge' :: Comp -> Comp -> Sem Comp
-merge' lhs []  = return lhs
-merge' []  rhs = return rhs
-merge' lhs rhs = foldr1 ((<|>)) $ left ++ right
-  where left = do l <- lhs
-                  let l' = [l]
-                  return $ (l' |.| rhs) <|> (rhs |.| l')
-        right = do r <- rhs
-                   let r' = [r]
-                   return $ (r' |.| lhs) <|> (lhs |.| r')
-
-merge :: Sem Comp -> Sem Comp -> Sem Comp
+-- | attempt to merge a composition with another composition, returning all
+-- legal combinations of those compositions
+merge :: Sem Comp -> Sem Comp -> Sem [Comp]
 merge lhs rhs = do l <- lhs
                    r <- rhs
                    l `merge'` r
@@ -338,50 +379,3 @@ sortE = liftM sort
 
 emptySt :: PosMap
 emptySt = empty
-
-debugO' :: Obj -> String
-debugO' Obj{..} = spacer ++ _name ++ ": \n  " ++ spacer ++ show _frozen
-                  ++ spacer ++ show _fSize ++ spacer
-  where spacer = "  \n  "
-
-debugM' :: Morph -> String
-debugM' Morph{..} = spacer ++ _mLabel ++ ": \n  " ++ _mFrom  ++ spacer
-                    ++ _mTo  ++ spacer ++ show _types ++ spacer ++ show _mfsize
-                    ++ spacer
-  where spacer = " \n  "
-
-debugC' :: Comp -> String
-debugC' = Prelude.foldr (++) "" . fmap debugM'
-
-debugE' :: Equ -> String
-debugE' = Prelude.foldr (++) "" . fmap debugC'
-
-debugO :: Sem Obj -> String
-debugO = debugMaker go
-  where
-    go (Right a) = debugO' a
-    go (Left err) = show err
-
-debugMaker :: (Either ErrMsg a -> String) -> Sem a -> String -- fmap?
-debugMaker f = f . flip evalState emptySt . runExceptT
-
-debugM :: Sem Morph -> String
-debugM = debugMaker go
-  where
-    go (Right a) = debugM' a
-    go (Left err) = show err
-
-debugC :: Sem Comp -> String
-debugC = debugMaker go
-  where
-    go (Right a) = debugC' a
-    go (Left err) = show err
-
-debugE :: Sem Equ -> String
-debugE = debugMaker go
-  where
-    go (Right a) = debugE' a
-    go (Left err) = show err
-
-customize :: String -> Custom Obj -> Sem ()
-customize o f = modify (adjust (customizations %~ (:) f) o)

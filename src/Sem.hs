@@ -72,35 +72,35 @@ _arrow Morph{..} =
         <> alignedText 0 1 _mLabel # moveTo (arrLoc b1 b2) # fontSizeL _mfsize)
 
 -- f = M $ mkMph (mkObj "$\\epsilon A$") "f" (mkObj "B") & setL' (0,0) (2,0)
-f' :: Sem Morph
-f' = mkMph "A" "f" "B"
+-- f' :: Sem Morph
+-- f' = mkMph "A" "f" "B"
 
-g' :: Sem Morph
-g' = mkMph "B" "g" "C"
+-- g' :: Sem Morph
+-- g' = mkMph "B" "g" "C"
 
-h' :: Sem Morph
-h' = mkMph "A" "h" "C"
+-- h' :: Sem Morph
+-- h' = mkMph "A" "h" "C"
 
-f :: Sem Morph
-f = do m <- mkMph "A" "f" "B"
-       -- setMLoc (10,0) (12,0) m
-       setOLoc 10 0 "A"
-       setOLoc 12 0 "B"
-       return m
+-- f :: Sem Morph
+-- f = do m <- mkMph "A" "f" "B"
+--        -- setMLoc (10,0) (12,0) m
+--        setOLoc 10 0 "A"
+--        setOLoc 12 0 "B"
+--        return m
 
-g :: Sem Morph
-g = do m <- mkMph "B" "g" "C"
-       setMLoc (2,0) (2,-2) m
-       return m
+-- g :: Sem Morph
+-- g = do m <- mkMph "B" "g" "C"
+--        setMLoc (2,0) (2,-2) m
+--        return m
 
-h :: Sem Morph
-h = mkMph "C" "h" "C'"
+-- h :: Sem Morph
+-- h = mkMph "C" "h" "C'"
 
-i :: Sem Morph
-i = mkMph "A'" "i" "B'"
+-- i :: Sem Morph
+-- i = mkMph "A'" "i" "B'"
 
-j :: Sem Morph
-j = mkMph ("B'") "j" ("C'")
+-- j :: Sem Morph
+-- j = mkMph ("B'") "j" ("C'")
 
 -- t1 :: Sem Comp
 -- t1 = tri f g h
@@ -149,6 +149,8 @@ validateObjs a@(Right ms, objs) | null $ objectNamesE ms \\ keys objs = a
                                 | otherwise = (Left . NoObj $ "Object names did not match internal state names, here is the necessary info: " ++ (show $ objectNamesE ms) ++ show objs , objs)
 validateObjs a@(Left   _,_) = a
 
+-- | WARNING, PAST THIS POINT IS A HALF IMPLEMENTED, POORLY THOUGHT OUT
+-- POSITIONING ENGINE. HERE THERE BE DRAGONS
 tagLocations :: (Either ErrMsg Equ, PosMap) -> (Either ErrMsg Equ, PosMap)
 tagLocations a@(Left _,_) = a
 tagLocations (Right ms, objs) = (Right ms , newMap)

@@ -90,10 +90,9 @@ arrowAt f l t fc tc = do a <- arrow f l t
 
 connectWithLabels :: [String] -> Comp -> Comp -> Sem Equ
 connectWithLabels ls os us = do newMs' <- newMs
-                                let ns = newMs' `merge''` os
-                                    oss = newMs' `merge''` us
-                                ns `mergeE` oss
-
+                                let oss = newMs' `merge'` os
+                                    uss = newMs' `merge'` us
+                                uss `mergeE` oss
   where
     oObjects = objectNamesC os
     uObjects = objectNamesC us
