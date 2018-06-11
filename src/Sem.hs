@@ -55,9 +55,10 @@ arrowSem Morph{..} =
   withName (_mTo) $ \b2 ->
   atop (arrowBetween' (with
                        & headGap .~ large
-                       & arrowHead .~ spike
+                       & headLength .~ verySmall
                        & tailGap .~ large
-                       & shaftStyle %~ dashingG [0.04, 0.02] 0)
+                       & shaftStyle %~ dashingG [0.04, 0.02] 0
+                      . lw veryThin)
          (location b1) (location b2) <> alignedText 0 1 _mLabel
          # moveTo (arrLoc b1 b2) # fontSizeL _mfSize)
   where fmat (Unique:_) = dashingG [0.04, 0.02] 0
