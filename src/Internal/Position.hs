@@ -7,35 +7,6 @@ import Data.Map             (adjust)
 import Internal.Types
 import Internal.Core
 
--- -- | Learning lenses. We tack the morphism, view the mPos field, because it's a
--- -- maybe we supply a default, if its nothing replace it with a Loc' 0 0, and
--- -- then scale the x field by the input double
--- transXL :: Double -> Morph -> Morph
--- transXL i m = m & mPos %~ non def . x +~ i
-
--- -- | Same for Y
--- transYL :: Double -> Morph -> Morph
--- transYL i m = m & mPos %~ non def . y +~ i
-
--- transL :: Double -> Double -> Morph -> Morph
--- transL x_ y_ = transYL y_ . transXL x_
-
--- -- | Just mutate the from field for the morph
--- transFrom :: Double -> Double -> Morph -> Morph
--- transFrom = (flip overLoc_ id .) . updateXY
-
--- -- | Just mutate the from field for the morph
--- transFrom' :: (Loc -> Loc) -> Morph -> Morph
--- transFrom' = over $ mFrom . oPos
-
--- -- | Just mutate the to field for the morph given two doubles
--- transTo :: Double -> Double -> Morph -> Morph
--- transTo = (overLoc_ id .) . updateXY
-
--- -- | Directly mutate the location of a morph given a unary function
--- transTo' :: (Loc -> Loc) -> Morph -> Morph
--- transTo' =  over $ mTo . oPos
-
 -- | set the from field for the morph given two doubles
 setFrom :: Double -> Double -> Morph -> Sem ()
 setFrom = (flip overLoc_ id .) . setXY
@@ -73,6 +44,51 @@ transX d = overLoc_ f f
 transY :: Double -> Morph -> Sem ()
 transY d = overLoc_ f f
   where f = non def . y %~ (+d)
+
+offset :: (Double,Double) -> String -> Sem ()
+offset = uncurry transO
+
+lower :: Double -> String -> Sem ()
+lower a = offset (0,-a)
+
+right :: Double -> String -> Sem ()
+right a = offset (a,0)
+
+left :: Double -> String -> Sem ()
+left a = offset (-a,0)
+
+raise :: Double -> String -> Sem ()
+raise a = offset (0,a)
+
+offsetC :: (Double,Double) -> Comp -> Sem ()
+offsetC a = mapM_ (offset a)  . objectNamesC
+
+lowerC :: Double -> Comp -> Sem ()
+lowerC a = offsetC (0,-a)
+
+rightC :: Double -> Comp -> Sem ()
+rightC a = offsetC (a,0)
+
+leftC :: Double -> Comp -> Sem ()
+leftC a = offsetC (-a,0)
+
+raiseC :: Double -> Comp -> Sem ()
+raiseC a = offsetC (0,a)
+
+offsetE :: (Double,Double) -> Equ -> Sem ()
+offsetE = mapM_ . offsetC
+
+lowerE :: Double -> Equ -> Sem ()
+lowerE a = offsetE (0,-a)
+
+rightE :: Double -> Equ -> Sem ()
+rightE a = offsetE (a,0)
+
+leftE :: Double -> Equ -> Sem ()
+leftE a = offsetE (-a,0)
+
+raiseE :: Double -> Equ -> Sem ()
+raiseE a = offsetE (0,a)
 
 -- | helper function to set the position instead of applying a transformation
 setMLoc :: (Double,Double) -> (Double,Double) -> Morph -> Sem ()

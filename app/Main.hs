@@ -22,5 +22,5 @@ import Api
 instance IsName Text
 
 main :: IO ()
-main = mainWith $ sem five_lemma # pad 3
+main = mainWith $ sem sumType <> mempty
 -- main = mainWith $ allRDs

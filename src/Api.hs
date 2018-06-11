@@ -12,6 +12,7 @@ module Api ( module Internal.Types
            , prime
            , uniqueArr
            , arrow
+           , arrows
            , arrowAt
            , connectWithLabels
            , intersperseWithLabels
@@ -27,17 +28,7 @@ module Api ( module Internal.Types
            , labelsBy
            , labelsBetween
            , labelsBetweenBy
-           , objectLabels
-           , offset
-           , left
-           , right
-           , lower
-           , raise
-           , offsetC
-           , leftC
-           , rightC
-           , lowerC
-           , raiseC) where
+           , objectLabels) where
 
 import Diagrams.Backend.PGF.CmdLine
 import Diagrams.Prelude hiding ((<>), tri, under,adjust,at,trace,_x,_y,arrow,arrowAt,coords,fc,offset)
@@ -82,6 +73,9 @@ uniqueArr frm lbl to_ = unique <$> mkMph frm lbl to_
 arrow :: String -> String -> String -> Sem Morph
 arrow = mkMph
 
+arrows :: [String] -> [String] -> [String] -> Sem Comp
+arrows = zipWithM3 mkMph
+
 arrowAt :: String -> String -> String ->
   (Double,Double) -> (Double,Double) -> Sem Morph
 arrowAt f l t fc tc = do a <- arrow f l t
@@ -119,36 +113,6 @@ coordsY _ xs z = zip (repeat 0) [xs,(xs+z)..]
 
 offsetMorph :: (Double,Double) -> (Double,Double) -> Comp -> Sem ()
 offsetMorph = transC
-
-offset :: (Double,Double) -> String -> Sem ()
-offset = uncurry transO
-
-lower :: Double -> String -> Sem ()
-lower a = offset (0,-a)
-
-right :: Double -> String -> Sem ()
-right a = offset (a,0)
-
-left :: Double -> String -> Sem ()
-left a = offset (-a,0)
-
-raise :: Double -> String -> Sem ()
-raise a = offset (0,a)
-
-offsetC :: (Double,Double) -> Comp -> Sem ()
-offsetC a = mapM_ (offset a)  . objectNamesC
-
-lowerC :: Double -> Comp -> Sem ()
-lowerC a = offsetC (0,-a)
-
-rightC :: Double -> Comp -> Sem ()
-rightC a = offsetC (a,0)
-
-leftC :: Double -> Comp -> Sem ()
-leftC a = offsetC (-a,0)
-
-raiseC :: Double -> Comp -> Sem ()
-raiseC a = offsetC (0,a)
 
 lowerMorph :: Double -> Comp -> Sem ()
 lowerMorph a = offsetMorph (0,-a) (0,-a)

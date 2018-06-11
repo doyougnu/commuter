@@ -123,8 +123,8 @@ coEqu :: Equ -> Equ
 coEqu = fmap coComp
 
 -- | map on the from and to fields of a morph
-bmap :: (String -> a) -> (String -> a) -> Morph -> [a]
-bmap f g m = [f (_mFrom m), g (_mTo m)]
+bmap :: (String -> String) -> (String -> String) -> Morph -> Morph
+bmap f g = (mFrom %~ f) . (mTo %~ g)
 
 -- | get the object names out of a morph
 objectNamesM :: Morph -> [String]
