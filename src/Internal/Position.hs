@@ -82,6 +82,9 @@ setMLoc fcs tcs = overLoc_ (uncurry setXY fcs) (uncurry setXY tcs)
 setOLoc :: (Ord k, MonadState (Map k Obj) m) => Double -> Double -> k -> m ()
 setOLoc x_ y_ = modify . adjust (oPos .~ Just (Loc' x_ y_))
 
+transO :: Double -> Double -> String -> Sem ()
+transO x_ y_ = overLocO_ (updateXY x_ y_)
+
 mkMphAt :: String ->
   String ->
   String ->

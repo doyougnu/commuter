@@ -6,7 +6,7 @@ import Control.Monad.Except (throwError, runExceptT, catchError)
 import Control.Monad        (liftM, liftM2)
 import Control.Monad.State  (evalState, modify,get)
 import Control.Applicative  ((<|>))
-import Data.List            (sort,nub)
+import Data.List            (sort,nub,tails)
 import Data.Map hiding      (null)
 
 import Internal.Types
@@ -104,6 +104,9 @@ overLoc_ f g m = modify $ adjust (oPos %~ f) (_mFrom m) . adjust (oPos %~ g) (_m
 updateXY :: Double -> Double -> Loc -> Loc
 updateXY x_ y_ = non def %~ (x +~ x_) . (y +~ y_)
 
+overLocO_ :: (Loc -> Loc) -> String -> Sem ()
+overLocO_ f = modify . adjust (oPos %~ f)
+
 -- | these are just lenses I don't know how to write
 domain :: Comp -> Sem String
 domain cs = (return . _mFrom . last $ cs) `catchError` handler
@@ -175,7 +178,7 @@ instance Composable Comp Comp (Sem Comp) where (|.|)  = comp'
 
 compM :: Morph -> Morph -> Sem Comp
 f `compM` g | fD == gR = return [f,g]
-          | otherwise = throwError $ MisMatch err
+            | otherwise = throwError $ MisMatch err
   where gR = _mTo g
         fD = _mFrom f
         err = "The range of " ++ show g
@@ -194,12 +197,22 @@ fs `comp'` gs = do rngGs <- range gs
     err = "The range of " ++ show gs ++ " does not match the domain of " ++ show fs
     handler = throwError $ MisMatch err
 
+comp'' :: Comp -> Comp -> Comp
+[] `comp''` gs = gs
+fs `comp''` [] = fs
+fs `comp''` gs | range' gs == domain' fs = fs ++ gs
+               | otherwise = fs
+  where
+    range' = _mTo . head
+    domain' = _mFrom . last
+
+
 instance Composable (Sem Comp) (Sem Comp) (Sem Comp) where (|.|) = comp
 comp :: Sem Comp -> Sem Comp -> Sem Comp
 fs `comp` gs = do rngGs <- gs >>= range
                   dmnFs <- fs >>= domain
                   if rngGs == dmnFs
-                    then (++) <$> fs <*> gs
+                    then (++) <$> fs <*> gs >>= return . nub
                     else handler
   where handler = do f <- fs
                      g <- gs
@@ -255,6 +268,35 @@ sqr f g h i = f |.| g |=| h |.| i
 -- [[g,f], [i,h]] [[l,g],[k,j]] ==> [[k,j,f],[l,g,f],[l,i,h]]
 
 -- [[g,f], [i,h]] [[k,j],[f,l]] ==> [[g,k,j],[g,f,l],[i,h,l]]
+
+combinations :: [a] -> [[a]]
+combinations xs = concatMap (flip combinations_ xs) ys
+  where
+    s = length xs
+    ys = [s,s-1..1]
+
+combinations_ :: Int -> [a] -> [[a]]
+combinations_ 0 _ = [[]]
+combinations_ n xs = [ y:ys | y:xs' <- tails xs
+                            , ys <- combinations_ (n-1) xs']
+
+-- | return a list of all legal compositions between two compositions
+merge'' :: Comp -> Comp -> Sem [Comp]
+merge'' lhs []  = return $ pure lhs
+merge'' []  rhs = return $ pure rhs
+merge'' lhs rhs = if null result
+                  then throwError . MisMatch $ err
+                  else return result
+  where
+    lhs' :: [Comp]
+    lhs' = combinations lhs
+    rhs' :: [Comp]
+    rhs' = combinations rhs
+    result = nub . concat $ [ [ l `comp''` r, r `comp''` l ]
+                            | l <- lhs'
+                            , r <- rhs'
+                            ]
+    err = "Could not compose: " ++ show lhs ++ " with " ++ show rhs
 
 merge' :: Comp -> Comp -> Sem Comp
 merge' lhs []  = return lhs

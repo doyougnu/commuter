@@ -17,17 +17,28 @@ module Api ( module Internal.Types
            , connectWithLabels
            , intersperseWithLabels
            , sem
-           , coords
-           , offset
-           , lower
-           , raise
-           , left
-           , right
+           , coordsX
+           , coordsY
+           , offsetMorph
+           , lowerMorph
+           , raiseMorph
+           , leftMorph
+           , rightMorph
            , labels
            , labelsBy
            , labelsBetween
            , labelsBetweenBy
-           , objectLabels) where
+           , objectLabels
+           , offset
+           , left
+           , right
+           , lower
+           , raise
+           , offsetC
+           , leftC
+           , rightC
+           , lowerC
+           , raiseC) where
 
 import Diagrams.Backend.PGF.CmdLine
 import Diagrams.Prelude hiding ((<>), tri, under,adjust,at,trace,_x,_y,arrow,arrowAt,coords,fc,offset)
@@ -77,9 +88,12 @@ arrowAt f l t fc tc = do a <- arrow f l t
                          _ <- setMLoc fc tc a
                          return a
 
-connectWithLabels :: [String] -> Comp -> Comp -> Sem Comp
+connectWithLabels :: [String] -> Comp -> Comp -> Sem Equ
 connectWithLabels ls os us = do newMs' <- newMs
-                                (newMs') `merge'` (os) ` merge` (us `merge'` newMs')
+                                let ns = newMs' `merge''` os
+                                    oss = newMs' `merge''` us
+                                ns `mergeE` oss
+
   where
     oObjects = objectNamesC os
     uObjects = objectNamesC us
@@ -99,22 +113,55 @@ sem :: Sem Equ -> QDiagram B V2 Double Any
 sem = sem_
 
 coordsX :: Double -> Double -> Double -> [(Double, Double)]
-coordsX xs ys z = zip [xs,(xs+z)..] $ repeat 0
+coordsX xs _ z = zip [xs,(xs+z)..] $ repeat 0
 
-offset :: (Double,Double) -> (Double,Double) -> Comp -> Sem ()
-offset = transC
+coordsY :: Double -> Double -> Double -> [(Double, Double)]
+coordsY _ xs z = zip (repeat 0) [xs,(xs+z)..]
 
-lower :: Double -> Comp -> Sem ()
-lower a = offset (0,-a) (0,-a)
+offsetMorph :: (Double,Double) -> (Double,Double) -> Comp -> Sem ()
+offsetMorph = transC
 
-raise :: Double -> Comp -> Sem ()
-raise a = offset (0,a) (0,a)
+offset :: (Double,Double) -> String -> Sem ()
+offset = uncurry transO
 
-right :: Double -> Comp -> Sem ()
-right a = offset (a,0) (a,0)
+lower :: Double -> String -> Sem ()
+lower a = offset (0,-a)
 
-left :: Double -> Comp -> Sem ()
-left a = offset (-a,0) (-a,0)
+right :: Double -> String -> Sem ()
+right a = offset (a,0)
+
+left :: Double -> String -> Sem ()
+left a = offset (-a,0)
+
+raise :: Double -> String -> Sem ()
+raise a = offset (0,a)
+
+offsetC :: (Double,Double) -> Comp -> Sem ()
+offsetC a = mapM_ (offset a)  . objectNamesC
+
+lowerC :: Double -> Comp -> Sem ()
+lowerC a = offsetC (0,-a)
+
+rightC :: Double -> Comp -> Sem ()
+rightC a = offsetC (a,0)
+
+leftC :: Double -> Comp -> Sem ()
+leftC a = offsetC (-a,0)
+
+raiseC :: Double -> Comp -> Sem ()
+raiseC a = offsetC (0,a)
+
+lowerMorph :: Double -> Comp -> Sem ()
+lowerMorph a = offsetMorph (0,-a) (0,-a)
+
+raiseMorph :: Double -> Comp -> Sem ()
+raiseMorph a = offsetMorph (0,a) (0,a)
+
+rightMorph :: Double -> Comp -> Sem ()
+rightMorph a = offsetMorph (a,0) (a,0)
+
+leftMorph :: Double -> Comp -> Sem ()
+leftMorph a = offsetMorph (-a,0) (-a,0)
 
 labelsBy :: (String -> String) -> Char -> [String]
 labelsBy f a = f . (:[]) <$> [a..]
