@@ -22,5 +22,5 @@ import Api
 instance IsName Text
 
 main :: IO ()
-main = mainWith $ sem sumType <> mempty
+main = mainWith $ sem product2 -- ((sem product2L) ||| (sem product2R)) --`beneath` (sem product_)
 -- main = mainWith $ allRDs

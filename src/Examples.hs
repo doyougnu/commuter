@@ -2,6 +2,7 @@ module Examples where
 
 -- import Control.Monad.State (get)
 import Debug.Trace (trace)
+import Control.Arrow ((***))
 import Internal.Debug
 
 import Api
@@ -36,15 +37,30 @@ productR = do let axb = "$A \\times B$"
 product_ :: Sem Equ
 product_ = productL `mergeE` productR
 
+product2L :: Sem Equ
+product2L = do
+  let [axb, a, y]    = [mathify "A \\times B", mathify "A", mathify "Y"]
+      [axbC, aC, yC] = [(0,0)                , (-3,0)     , (0,3)      ]
+  f <- arrowAt y   "f" axb yC   axbC
+  g <- arrowAt axb "g" a   axbC aC
+  h <- arrowAt y   "h" a   yC   aC
+  p <- (g `compM` f) |==| (liftToComp h)
+  return p
+
+product2R :: Sem Equ
+product2R = do p' <- product2L >>= return . swapMLabelE "g" (const "j") >>= return . swapMLabelE "h" (const "i")
+               newP <- swapLabelE (mathify "A") (const $ mathify "B") p'
+               flipOverE (negate *** id) newP
+               return newP
+
+-- throws an error because of a bug with the latex. bug turns "$A \\times B$"
+-- into "$A \times B$" and therefore produces an except from Data.Map in the
+-- sem' function in Sem module.
+product2 :: Sem Equ
+product2 = (coEqu <$> product2L) `mergeE` (coEqu <$> product2R)
 
 sumType1 :: Sem Equ
 sumType1 = coEqu <$> product_
 
 sumType :: Sem Equ
-sumType = do p <- coEqu <$> product_
-             st <- get
-             trace (show st) $ return ()
-             p' <- swapLabelE ("$A \\times B$") (const $ mathify "A \\coprod B") p
-             st' <- get
-             trace (show st') $ return ()
-             return p'
+sumType = coEqu <$> product_ >>= swapLabelE ("$A \\times B$") (const $ mathify "A \\coprod B")

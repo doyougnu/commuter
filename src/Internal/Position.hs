@@ -31,9 +31,9 @@ transM fcs tcs = overLoc_ (uncurry updateXY fcs) (uncurry updateXY tcs)
 transC :: (Double, Double) -> (Double, Double) -> Comp -> Sem ()
 transC = (mapM_ .) . transM
 
--- | the unticked version of trans' is overLoc_
-trans' :: (Loc -> Loc) -> (Loc -> Loc) -> Morph -> Sem ()
-trans' = overLoc_
+-- | the unticked version of onLocs is overLoc_
+onLocs :: (Loc -> Loc) -> (Loc -> Loc) -> Morph -> Sem ()
+onLocs = overLoc_
 
 -- | apply an offset only to the x coordinate for both objects in a morph
 transX :: Double -> Morph -> Sem ()
@@ -44,6 +44,9 @@ transX d = overLoc_ f f
 transY :: Double -> Morph -> Sem ()
 transY d = overLoc_ f f
   where f = non def . y %~ (+d)
+
+flipOverE :: ((Double,Double) -> (Double,Double)) -> Equ -> Sem ()
+flipOverE f = mapM_ (onOLoc f) . objectNamesE
 
 offset :: (Double,Double) -> String -> Sem ()
 offset = uncurry transO
@@ -97,6 +100,10 @@ setMLoc fcs tcs = overLoc_ (uncurry setXY fcs) (uncurry setXY tcs)
 -- | Set an objects location in the state map regardless of what is there
 setOLoc :: (Ord k, MonadState (Map k Obj) m) => Double -> Double -> k -> m ()
 setOLoc x_ y_ = modify . adjust (oPos .~ Just (Loc' x_ y_))
+
+onOLoc :: ((Double,Double) -> (Double,Double)) -> String -> Sem ()
+onOLoc f = modify . adjust (oPos %~ f')
+  where f' = wrapDouble f
 
 transO :: Double -> Double -> String -> Sem ()
 transO x_ y_ = overLocO_ (updateXY x_ y_)

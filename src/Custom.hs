@@ -69,6 +69,17 @@ swapLabel obj f cs = do customize obj (name %~ f)
 swapLabelE :: String -> (String -> String) -> Equ -> Sem Equ
 swapLabelE obj f e =  mapM (swapLabel obj f) e
 
+swapMLabel :: (String -> String) -> Morph -> Morph
+swapMLabel f = mLabel %~ f
+
+swapMLabelC :: String -> (String -> String) -> Comp -> Comp
+swapMLabelC mlab f = fmap helper
+  where helper a | _mLabel a == mlab = swapMLabel f a
+                 | otherwise = a
+
+swapMLabelE :: String -> (String -> String) -> Equ -> Equ
+swapMLabelE = (fmap .) . swapMLabelC
+
 -- | Convert a string to use latex
 mathify :: String -> String
 mathify s = "$" ++ s ++ "$"

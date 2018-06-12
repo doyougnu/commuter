@@ -14,6 +14,7 @@ module Api ( module Internal.Types
            , arrow
            , arrows
            , arrowAt
+           , arrowsAt
            , connectWithLabels
            , intersperseWithLabels
            , sem
@@ -32,7 +33,7 @@ module Api ( module Internal.Types
 
 import Diagrams.Backend.PGF.CmdLine
 import Diagrams.Prelude hiding ((<>), tri, under,adjust,at,trace,_x,_y,arrow,arrowAt,coords,fc,offset)
-import Control.Monad.ListM (zipWithM3)
+import Control.Monad.ListM (zipWithM3,zipWithM5)
 import Control.Monad       (zipWithM)
 import Control.Lens hiding (under, (#),beside,transform,backwards,none,(.>))
 import Data.Char (toUpper)
@@ -81,6 +82,10 @@ arrowAt :: String -> String -> String ->
 arrowAt f l t fc tc = do a <- arrow f l t
                          _ <- setMLoc fc tc a
                          return a
+
+arrowsAt :: [String] -> [String] -> [String] ->
+  [(Double,Double)] -> [(Double,Double)] -> Sem [Morph]
+arrowsAt = zipWithM5 arrowAt
 
 connectWithLabels :: [String] -> Comp -> Comp -> Sem Equ
 connectWithLabels ls os us = do newMs' <- newMs

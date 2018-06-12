@@ -32,6 +32,7 @@ module Internal.Core ( module Control.Lens
                      , getObj
                      , setXY
                      , toLoc
+                     , wrapDouble
                      , overLoc_
                      , updateXY
                      , overLocO_
@@ -58,6 +59,7 @@ module Internal.Core ( module Control.Lens
                      , merge
                      , mergeE'
                      , mergeE
+                     , join
                      , sortE'
                      , sortE
                      , emptySt) where
@@ -65,18 +67,25 @@ module Internal.Core ( module Control.Lens
 
 import Control.Lens hiding  (under,AReview,(#))
 import Control.Monad.Except (throwError, catchError)
+import Control.Applicative  ((<|>))
 import Control.Monad        (liftM, liftM2)
 import Control.Monad.State  (modify, get)
 import Data.List            (sort,nub,tails)
 import Data.Map hiding      (null, (\\))
 
 import Internal.Types
+import Debug.Trace (trace)
 
 -- | now we derive lenses for this mess
 makeLenses ''Loc'
 makeLenses ''Obj
 makeLenses ''Morph
 -- makeLenses ''Morph2
+
+wrapDouble :: ((Double,Double) -> (Double,Double)) -> Loc -> Loc
+wrapDouble _ Nothing = Nothing
+wrapDouble f (Just Loc'{..}) = Just $ Loc' a b
+  where (a,b) = f (_x,_y)
 
 -- | Given a name create an object with that string as its name
 mkObj :: String -> Sem String
@@ -87,9 +96,9 @@ mkObj s = do let o = def & name.~ s
 -- | Smart constructors
 mkMph' :: String -> String -> String -> Morph
 mkMph' f lbl t = def
-                & mFrom  .~ f
-                & mLabel .~ lbl
-                & mTo    .~ t
+                 & mFrom  .~ f
+                 & mLabel .~ lbl
+                 & mTo    .~ t
 
 -- mkMph2 :: String -> Morph -> Morph2
 -- mkMph2 lbl t = def & m2Label .~ lbl
@@ -373,6 +382,9 @@ mergeE :: Sem Equ -> Sem Equ -> Sem Equ
 mergeE lhs rhs = do l <- lhs
                     r <- rhs
                     l `mergeE'` r
+
+join :: Equ -> Equ -> Sem Equ
+join lhs rhs = foldr1 ((<|>)) [ l `merge'` r | l <- lhs, r <- rhs]
 
 sortE' :: Equ -> Equ
 sortE' = sort
