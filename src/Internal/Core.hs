@@ -30,6 +30,7 @@ module Internal.Core ( module Control.Lens
                      , objectNamesE
                      , insertObj
                      , getObj
+                     , onMorph
                      , setXY
                      , toLoc
                      , wrapDouble
@@ -175,6 +176,10 @@ updateXY x_ y_ = non def %~ (x +~ x_) . (y +~ y_)
 
 overLocO_ :: (Loc -> Loc) -> String -> Sem ()
 overLocO_ f = modify . adjust (oPos %~ f)
+
+-- | apply some function to morphisms on a composition
+onMorph :: (Morph -> Morph) -> Comp -> Comp
+onMorph = fmap
 
 -- | these are just lenses I don't know how to write
 domain :: Comp -> Sem String

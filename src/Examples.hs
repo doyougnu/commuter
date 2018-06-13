@@ -37,6 +37,23 @@ productR = do let axb = "$A \\times B$"
 product_ :: Sem Equ
 product_ = productL `mergeE` productR
 
+iDontCompose :: Sem Equ
+iDontCompose =
+  do f <- arrowAt "A" "f" "B" (0,0) (2,0)
+     g <- arrowAt "B" "g" "C" (2,0) (2,-2)
+     pure <$> f `compM` g
+
+iCompose :: Sem Equ
+iCompose = do f <- arrowAt "A" "f" "B" (0,0) (2,0)
+              g <- arrowAt "B" "g" "C" (2,0) (2,-2)
+              pure <$> g `compM` f
+
+-- | Will throw an uncaught error at compile time because A and B are in the
+-- same location
+iThrowAnUnCaughtError :: Sem Equ
+iThrowAnUnCaughtError = do a <- arrowAt "A" "f" "B" (0,0) (0,0)
+                           return . pure . pure $ a
+
 product2L :: Sem Equ
 product2L = do
   let [axb, a, y]    = [mathify "A \\times B", mathify "A", mathify "Y"]

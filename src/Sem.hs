@@ -57,11 +57,11 @@ arrowSem Morph{..} =
                        & headGap .~ large
                        & headLength .~ verySmall
                        & tailGap .~ large
-                       & shaftStyle %~ dashingG [0.50 , 0.22] 0
+                       & shaftStyle %~ fmat []
                       . lw veryThin)
          (location b1) (location b2) <> alignedText 0 1 _mLabel
          # moveTo (arrLoc b1 b2) # fontSizeL _mfSize)
-  where fmat (Unique:_) = dashingG [0.50 , 0.02] 0
+  where fmat (Unique:_) = dashingG [0.50 , 0.22] 0
         fmat _ = id
 
 _arrow a@Morph{..} = arrowSem b
