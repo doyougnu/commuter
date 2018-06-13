@@ -28,7 +28,9 @@ something goes wrong and you can find more resources on stack
 [here](http://groups.engr.oregonstate.edu/fpc/tutorials/stackOverview.html).
 Also, due to the use of stack this ghc **will not** interfere with your global
 ghc or global stack setup. It will be sandboxed only to the directory that you
-unzip it in.
+unzip it in. You will also notice that there is no cabal file that I'm exporting
+with this, the cabal file should be automatically generated with `stack build`
+as specified in the `stack.yaml` and the `package.yaml` files.
 
 # How to Execute a program
 Execution is done in the `app/Main.hs` file. Simply place your program in `Examples.hs` or import your file and then call `sem` and `mainWith` like so:
