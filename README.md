@@ -60,6 +60,17 @@ The reason this happens is because the diagrams library will try to place things
 for it's user and this sometimes clashes with the internal coordinate system of
 the commuter DSL.
 
+Here is a full example of the compilation of the five lemma example:
+```
+DSLs/commuter $ stack build; stack exec -- commuter -h 1000 -w 1000 -o five_lemma.pdf; firefox five_lemma.pdf
+WARNING: Ignoring out of range dependency (allow-newer enabled): lens-4.16.1. diagrams-contrib requires: >=4.0 && <4.16
+WARNING: Ignoring out of range dependency (allow-newer enabled): lens-4.16.1. diagrams-svg requires: >=4.0 && <4.16
+WARNING: Ignoring out of range dependency (allow-newer enabled): base-4.10.1.0. diagrams-pgf requires: >=4.4 && <4.10
+WARNING: Ignoring out of range dependency (allow-newer enabled): optparse-applicative-0.14.2.0. diagrams-pgf requires: >=0.13 && <0.14
+WARNING: Ignoring out of range dependency (allow-newer enabled): process-1.6.1.0. diagrams-pgf requires: >=1.0 && <1.5
+WARNING: Ignoring out of range dependency (allow-newer enabled): base-4.10.1.0. texrunner requires: >=4.6 && <4.10
+WARNING: Ignoring out of range dependency (allow-newer enabled): time-1.8.0.2. diagrams-pgf requires: >=1.2 && <1.7
+```
 
 # Problems you may encounter
 ## A bug with the LaTeX engine
